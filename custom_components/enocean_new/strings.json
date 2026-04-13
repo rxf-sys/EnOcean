@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EnOcean USB-300 Dongle",
+        "description": "Choose the device path for the EnOcean USB300 dongle. Paths from /dev/serial/by-id are listed first.",
+        "data": {
+          "device": "Device path"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This dongle is already configured."
+    }
+  }
+}
