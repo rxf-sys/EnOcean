@@ -137,6 +137,36 @@ class EnOceanDongle:
             self._listeners.remove(callback)
 
     # ------------------------------------------------------------------ #
+    # Sender-ID validation
+    # ------------------------------------------------------------------ #
+    def is_valid_sender(self, sender_id) -> bool:
+        """Return True if sender_id is in the dongle's allowed range.
+
+        The EnOcean USB300 will silently refuse to transmit telegrams whose
+        sender address is outside the range ``base_id .. base_id + 127``.
+        We treat the 4-byte ID as a 32-bit integer so byte boundary crossings
+        are handled correctly.
+        """
+        if not self.base_id:
+            # Base ID could not be read - we cannot validate, allow.
+            return True
+        if sender_id is None or len(sender_id) != 4:
+            return False
+        base = (
+            (self.base_id[0] << 24)
+            | (self.base_id[1] << 16)
+            | (self.base_id[2] << 8)
+            | self.base_id[3]
+        )
+        sid = (
+            (int(sender_id[0]) << 24)
+            | (int(sender_id[1]) << 16)
+            | (int(sender_id[2]) << 8)
+            | int(sender_id[3])
+        )
+        return 0 <= (sid - base) <= 127
+
+    # ------------------------------------------------------------------ #
     # Packet construction / send
     # ------------------------------------------------------------------ #
     @staticmethod

@@ -31,6 +31,7 @@ from .const import (
     RORG_4BS,
 )
 from .device import EnOceanDevice
+from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ DEVICE_CLASS_HUMIDITY = "humidity"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
+        vol.Required(CONF_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_DEVICE_CLASS, default=DEVICE_CLASS_TEMPERATURE): vol.In(
             [DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_HUMIDITY]

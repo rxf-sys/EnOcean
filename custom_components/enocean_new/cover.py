@@ -32,6 +32,8 @@ from .const import (
     STATUS_RELEASED,
 )
 from .device import EnOceanDevice
+from .dongle import format_id
+from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,8 +41,8 @@ DEFAULT_NAME = "EnOcean Cover"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_SENDER_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
-        vol.Optional(CONF_RECEIVER_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
+        vol.Required(CONF_SENDER_ID): ENOCEAN_ID,
+        vol.Optional(CONF_RECEIVER_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )
@@ -64,6 +66,15 @@ async def async_setup_platform(
     sender_id: List[int] = config[CONF_SENDER_ID]
     receiver_id: Optional[List[int]] = config.get(CONF_RECEIVER_ID)
     name: str = config[CONF_NAME]
+
+    dongle = hass.data[DOMAIN][DATA_DONGLE]
+    if not dongle.is_valid_sender(sender_id):
+        _LOGGER.warning(
+            "Cover '%s' sender_id %s is outside the dongle's valid range "
+            "(base_id .. base_id+127). The dongle will refuse to send.",
+            name,
+            format_id(sender_id),
+        )
 
     async_add_entities([EnOceanCover(hass, sender_id, receiver_id, name)])
 
@@ -92,17 +103,23 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         )
         self._attr_name = name
         self._attr_is_closed: Optional[bool] = None
-        self._moving = False
+        self._attr_is_opening = False
+        self._attr_is_closing = False
+        # OPUS jalousies don't reliably report state, so HA should
+        # show this entity's state as assumed.
+        self._attr_assumed_state = True
         self._last_direction: Optional[int] = None
         self._attr_unique_id = "enocean_new_cover_" + "".join(
             f"{b:02x}" for b in self._sender_id
         )
 
     async def async_added_to_hass(self) -> None:
-        self.dongle.add_listener(self._packet_received)
+        if self._receiver_id is not None:
+            self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
-        self.dongle.remove_listener(self._packet_received)
+        if self._receiver_id is not None:
+            self.dongle.remove_listener(self._packet_received)
 
     def _packet_received(self, packet: dict) -> None:
         """Best-effort feedback handler; OPUS jalousies usually send nothing."""
@@ -136,7 +153,8 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         self._send_press_release(COVER_UP)
         self._last_direction = COVER_UP
         self._attr_is_closed = False
-        self._moving = True
+        self._attr_is_opening = True
+        self._attr_is_closing = False
         self.schedule_update_ha_state()
 
     def close_cover(self, **kwargs) -> None:
@@ -146,7 +164,8 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         self._send_press_release(COVER_DOWN)
         self._last_direction = COVER_DOWN
         self._attr_is_closed = True
-        self._moving = True
+        self._attr_is_opening = False
+        self._attr_is_closing = True
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs) -> None:
@@ -157,5 +176,6 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         # Send a brief press in the direction we last moved to act as a stop.
         button = self._last_direction if self._last_direction is not None else COVER_UP
         self._send_press_release(button)
-        self._moving = False
+        self._attr_is_opening = False
+        self._attr_is_closing = False
         self.schedule_update_ha_state()

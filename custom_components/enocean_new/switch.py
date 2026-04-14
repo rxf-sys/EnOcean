@@ -30,6 +30,8 @@ from .const import (
     STATUS_RELEASED,
 )
 from .device import EnOceanDevice
+from .dongle import format_id
+from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,8 +39,8 @@ DEFAULT_NAME = "EnOcean Switch"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_SENDER_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
-        vol.Optional(CONF_RECEIVER_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
+        vol.Required(CONF_SENDER_ID): ENOCEAN_ID,
+        vol.Optional(CONF_RECEIVER_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )
@@ -63,6 +65,15 @@ async def async_setup_platform(
     receiver_id: Optional[List[int]] = config.get(CONF_RECEIVER_ID)
     name: str = config[CONF_NAME]
 
+    dongle = hass.data[DOMAIN][DATA_DONGLE]
+    if not dongle.is_valid_sender(sender_id):
+        _LOGGER.warning(
+            "Switch '%s' sender_id %s is outside the dongle's valid range "
+            "(base_id .. base_id+127). The dongle will refuse to send.",
+            name,
+            format_id(sender_id),
+        )
+
     async_add_entities([EnOceanSwitch(hass, sender_id, receiver_id, name)])
 
 
@@ -85,16 +96,20 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
         )
         self._attr_name = name
         self._attr_is_on = False
+        # Without state feedback we cannot know the real state.
+        self._attr_assumed_state = self._receiver_id is None
         self._attr_unique_id = "enocean_new_switch_" + "".join(
             f"{b:02x}" for b in self._sender_id
         )
 
     async def async_added_to_hass(self) -> None:
         """Register packet listener once entity is fully added."""
-        self.dongle.add_listener(self._packet_received)
+        if self._receiver_id is not None:
+            self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
-        self.dongle.remove_listener(self._packet_received)
+        if self._receiver_id is not None:
+            self.dongle.remove_listener(self._packet_received)
 
     # ------------------------------------------------------------------ #
     # RX

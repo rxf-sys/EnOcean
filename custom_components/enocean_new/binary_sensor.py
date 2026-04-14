@@ -24,6 +24,7 @@ from .const import (
     RORG_RPS,
 )
 from .device import EnOceanDevice
+from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ DEFAULT_NAME = "EnOcean Binary Sensor"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_ID): vol.All(cv.ensure_list, [vol.Coerce(int)]),
+        vol.Required(CONF_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): cv.string,
     }
