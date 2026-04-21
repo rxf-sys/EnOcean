@@ -26,6 +26,7 @@ import serial
 
 from .const import (
     CO_RD_IDBASE,
+    CO_RD_VERSION,
     DEFAULT_BAUDRATE,
     ESP3_SYNC_BYTE,
     PACKET_COMMON_COMMAND,
@@ -108,6 +109,20 @@ class EnOceanDongle:
                 _LOGGER.warning("Could not read base ID from dongle")
         except Exception:  # noqa: BLE001
             _LOGGER.exception("Error while reading base ID")
+
+        try:
+            version = self._read_version()
+            if version:
+                _LOGGER.info(
+                    "EnOcean dongle firmware: app=%s api=%s chip=%s "
+                    "description='%s'",
+                    version["app_version"],
+                    version["api_version"],
+                    version["chip_id"],
+                    version["app_description"],
+                )
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Could not read dongle firmware version")
 
     def disconnect(self) -> None:
         """Stop the read loop and close the serial port."""
@@ -292,6 +307,33 @@ class EnOceanDongle:
         if len(data) >= 5:
             return list(data[1:5])
         return None
+
+    def _read_version(self) -> Optional[dict]:
+        """Read the dongle firmware version via CO_RD_VERSION."""
+        self._response_event.clear()
+        self._last_response = None
+        self.send_packet(PACKET_COMMON_COMMAND, bytes([CO_RD_VERSION]))
+        if not self._response_event.wait(timeout=2.0):
+            return None
+        resp = self._last_response
+        if not resp:
+            return None
+        data = resp.get("data", b"")
+        # Response: return_code(1) + APP_VERSION(4) + API_VERSION(4)
+        #           + CHIP_ID(4) + CHIP_VERSION(4) + APP_DESCRIPTION(16)
+        if len(data) < 17:
+            return None
+        return {
+            "app_version": ".".join(str(b) for b in data[1:5]),
+            "api_version": ".".join(str(b) for b in data[5:9]),
+            "chip_id": data[9:13].hex(),
+            "chip_version": ".".join(str(b) for b in data[13:17]),
+            "app_description": (
+                data[17:33].decode("ascii", errors="replace").rstrip("\x00")
+                if len(data) >= 33
+                else "unknown"
+            ),
+        }
 
     # ------------------------------------------------------------------ #
     # Read loop

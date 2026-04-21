@@ -44,6 +44,20 @@ OPUS_ON = 0x50
 OPUS_OFF = 0x70
 OPUS_RELEASE = 0x00
 
+# RPS rocker button values (EEP F6-02-01 / F6-02-02)
+RPS_ROCKER_A_ON = 0x10   # AI pressed (rocker A bottom)
+RPS_ROCKER_A_OFF = 0x30  # A0 pressed (rocker A top)
+RPS_ROCKER_B_ON = 0x50   # BI pressed (rocker B bottom)
+RPS_ROCKER_B_OFF = 0x70  # B0 pressed (rocker B top)
+
+# Channel → (ON value, OFF value) mapping.
+# USB300 dongles that always send with base_id can use different
+# rocker channels to address up to 2 independent devices.
+CHANNEL_ON_OFF = {
+    0: (RPS_ROCKER_B_ON, RPS_ROCKER_B_OFF),  # Rocker B (default)
+    1: (RPS_ROCKER_A_ON, RPS_ROCKER_A_OFF),  # Rocker A
+}
+
 # Cover (jalousie) RPS values
 COVER_UP = 0x50    # Channel 0 pressed
 COVER_DOWN = 0x30  # Channel 1 pressed
