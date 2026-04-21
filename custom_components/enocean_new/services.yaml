@@ -1,0 +1,50 @@
+send_rps:
+  name: Send RPS telegram
+  description: >-
+    Send a raw RPS (F6) telegram from the EnOcean dongle. The sender_id is
+    transmitted unchanged (bug-free path). Useful for teach-in and debugging.
+  fields:
+    sender_id:
+      name: Sender ID
+      description: >-
+        4-byte sender address. Must be within the dongle's valid range
+        (base_id .. base_id + 127).
+      required: true
+      example: "[0x05, 0xA7, 0x90, 0x64]"
+      selector:
+        object:
+    data_byte:
+      name: Data byte
+      description: >-
+        RPS data byte. Common OPUS values: 0x50 = ON / jalousie up,
+        0x70 = OFF, 0x30 = jalousie down, 0x00 = button released.
+      required: true
+      example: "0x50"
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    status:
+      name: Status byte
+      description: >-
+        Status byte. 0x30 = button pressed (T21=1, NU=1),
+        0x20 = button released (T21=1, NU=0).
+      required: false
+      default: 48
+      example: "0x30"
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
+    press_release:
+      name: Send press + release pair
+      description: >-
+        If true, automatically sends a release telegram (data_byte=0x00,
+        status=0x20) after a short delay. This matches what the switch
+        entity does on turn_on / turn_off.
+      required: false
+      default: true
+      selector:
+        boolean:
