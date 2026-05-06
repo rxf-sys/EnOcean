@@ -94,16 +94,22 @@ class EnOceanDongle:
         )
         self._thread.start()
 
-        # Try to read base ID. Best effort - if it fails the dongle will still
-        # accept telegrams that we send.
         try:
             self.base_id = self._read_base_id()
             if self.base_id:
+                base_int = int.from_bytes(self.base_id, "big")
+                end_id = list((base_int + 127).to_bytes(4, "big"))
                 _LOGGER.info(
-                    "EnOcean dongle base ID: %s (valid sender range: %s .. %s)",
+                    "EnOcean dongle base_id: %s  "
+                    "Valid sender range: %s .. %s (128 addresses)",
                     format_id(self.base_id),
                     format_id(self.base_id),
-                    format_id(self.base_id[:3] + [(self.base_id[3] + 127) & 0xFF]),
+                    format_id(end_id),
+                )
+                _LOGGER.info(
+                    "Use service enocean_new.test_sender to verify if the "
+                    "dongle supports different sender addresses. "
+                    "Use enocean_new.teach_in to teach actuators."
                 )
             else:
                 _LOGGER.warning("Could not read base ID from dongle")
@@ -231,12 +237,13 @@ class EnOceanDongle:
         sender_id,
         data_byte: int,
         status: int = 0x30,
+        destination: Optional[List[int]] = None,
     ) -> None:
         """Send a RPS (F6) telegram with the EXACT sender_id provided.
 
-        CRITICAL: sender_id is used unchanged. It is NEVER replaced by the
-        dongle's base ID. This is the bug that the upstream enocean library
-        and its derivatives suffer from.
+        The sender_id is placed directly into the ESP3 Radio ERP1 data field.
+        Per the ESP3 specification, the USB300 gateway should transmit with
+        this sender_id if it is within the valid range (base_id..base_id+127).
         """
         if sender_id is None or len(sender_id) != 4:
             raise ValueError("sender_id must be a 4-byte sequence")
@@ -254,14 +261,21 @@ class EnOceanDongle:
                 status & 0xFF,
             ]
         )
-        # Optional data: SubTelNum=3, destination=broadcast, dBm=0xFF, security=0
-        optional = bytes([0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00])
+        dest = (
+            [int(b) & 0xFF for b in destination]
+            if destination
+            else [0xFF, 0xFF, 0xFF, 0xFF]
+        )
+        optional = bytes([0x03, dest[0], dest[1], dest[2], dest[3], 0xFF, 0x00])
 
-        _LOGGER.debug(
-            "Send RPS sender_id=%s data_byte=0x%02X status=0x%02X",
+        offset = self._sender_offset(sid)
+        _LOGGER.info(
+            "TX RPS sender=%s (base+%s) data=0x%02X status=0x%02X dest=%s",
             format_id(sid),
+            offset if offset is not None else "?",
             data_byte,
             status,
+            format_id(dest),
         )
         self.send_packet(PACKET_RADIO_ERP1, data, optional)
 
@@ -288,6 +302,15 @@ class EnOceanDongle:
             data_byte,
         )
         self.send_packet(PACKET_RADIO_ERP1, data, optional)
+
+    def _sender_offset(self, sender_id) -> Optional[int]:
+        """Calculate the offset of sender_id from base_id."""
+        if not self.base_id or sender_id is None or len(sender_id) != 4:
+            return None
+        base = int.from_bytes(self.base_id, "big")
+        sid = int.from_bytes(bytes(sender_id), "big")
+        diff = sid - base
+        return diff if 0 <= diff <= 127 else None
 
     # ------------------------------------------------------------------ #
     # Common commands
@@ -411,20 +434,27 @@ class EnOceanDongle:
     def _handle_packet(
         self, packet_type: int, data: bytes, opt_data: bytes
     ) -> None:
-        _LOGGER.debug(
-            "RX type=0x%02X data=%s opt=%s",
-            packet_type,
-            data.hex(),
-            opt_data.hex(),
-        )
-
         if packet_type == PACKET_RESPONSE:
+            rc = data[0] if data else -1
+            _LOGGER.debug("RX RESPONSE return_code=%d data=%s", rc, data.hex())
             self._last_response = {"data": data, "opt": opt_data}
             self._response_event.set()
             return
 
         if packet_type == PACKET_RADIO_ERP1:
             packet_info = self._parse_radio(data, opt_data)
+            if packet_info:
+                _LOGGER.info(
+                    "RX RADIO rorg=0x%02X sender=%s data=%s status=0x%02X",
+                    packet_info["rorg"],
+                    format_id(packet_info["sender_id"]),
+                    " ".join(f"0x{b:02X}" for b in packet_info.get("data", [])),
+                    packet_info.get("status", 0),
+                )
+            else:
+                _LOGGER.debug(
+                    "RX RADIO (unparsed) data=%s opt=%s", data.hex(), opt_data.hex()
+                )
             if packet_info and self._listeners:
                 # Dispatch on the HA event loop so callbacks can safely
                 # call schedule_update_ha_state and async_fire.

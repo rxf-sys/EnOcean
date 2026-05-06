@@ -1,8 +1,8 @@
 send_rps:
   name: Send RPS telegram
   description: >-
-    Send a raw RPS (F6) telegram from the EnOcean dongle. The sender_id is
-    transmitted unchanged (bug-free path). Useful for teach-in and debugging.
+    Send a raw RPS (F6) telegram from the EnOcean dongle.
+    Useful for teach-in and debugging.
   fields:
     sender_id:
       name: Sender ID
@@ -16,8 +16,9 @@ send_rps:
     data_byte:
       name: Data byte
       description: >-
-        RPS data byte. Common OPUS values: 0x50 = ON / jalousie up,
-        0x70 = OFF, 0x30 = jalousie down, 0x00 = button released.
+        RPS data byte. Common values: 0x50 = Rocker B ON,
+        0x70 = Rocker B OFF, 0x10 = Rocker A ON, 0x30 = Rocker A OFF,
+        0x00 = button released.
       required: true
       example: "0x50"
       selector:
@@ -42,9 +43,86 @@ send_rps:
       name: Send press + release pair
       description: >-
         If true, automatically sends a release telegram (data_byte=0x00,
-        status=0x20) after a short delay. This matches what the switch
-        entity does on turn_on / turn_off.
+        status=0x20) after a short delay.
       required: false
       default: true
       selector:
         boolean:
+
+teach_in:
+  name: Teach-in actuator
+  description: >-
+    Send a teach-in RPS telegram for a specific sender_id and channel.
+    Put your actuator in teach-in mode BEFORE calling this service.
+    Channel 0 uses Rocker B (0x50/0x70), channel 1 uses Rocker A (0x10/0x30).
+    Each actuator should be taught with a UNIQUE combination of sender_id + channel.
+  fields:
+    sender_id:
+      name: Sender ID
+      description: >-
+        4-byte sender address for this actuator. Must be within the dongle's
+        valid range (base_id .. base_id + 127). Use a different sender_id
+        for each pair of actuators (2 channels per sender_id).
+      required: true
+      example: "[0x05, 0xA7, 0x90, 0x64]"
+      selector:
+        object:
+    channel:
+      name: Channel
+      description: >-
+        Rocker channel: 0 = Rocker B (default), 1 = Rocker A.
+        Two actuators can share the same sender_id if they use different channels.
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 1
+          mode: box
+
+test_sender:
+  name: Test sender_id differentiation
+  description: >-
+    Diagnostic test: sends ON commands with two different sender_id offsets,
+    separated by a configurable delay. Watch which actuators react to each test.
+    If an actuator responds to BOTH tests, the dongle is replacing sender_ids
+    with the base_id. If it responds to only ONE, sender_id offsets work correctly.
+    IMPORTANT: Un-teach all actuators first, then teach ONE actuator with
+    sender_id = base_id + offset_a and channel 0 before running this test.
+  fields:
+    sender_offset_a:
+      name: Sender offset A
+      description: >-
+        Offset from base_id for test A. The actuator should be taught with this offset.
+      required: false
+      default: 0
+      example: "0"
+      selector:
+        number:
+          min: 0
+          max: 127
+          mode: box
+    sender_offset_b:
+      name: Sender offset B
+      description: >-
+        Offset from base_id for test B. The actuator should NOT be taught with this offset.
+        If the actuator reacts to this test, sender_id differentiation is broken.
+      required: false
+      default: 1
+      example: "1"
+      selector:
+        number:
+          min: 0
+          max: 127
+          mode: box
+    delay:
+      name: Delay between tests (seconds)
+      description: >-
+        Seconds to wait between test A and test B.
+      required: false
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 30
+          mode: box
