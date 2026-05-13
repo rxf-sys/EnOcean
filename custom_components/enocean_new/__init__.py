@@ -276,17 +276,43 @@ def _register_services(hass: HomeAssistant) -> None:
         )
 
         def _do_test() -> None:
-            _LOGGER.warning(">>> Test A: Sending ON with sender=%s", format_id(sid_a))
-            dongle.send_rps_command(sid_a, on_val, status=STATUS_PRESSED)
-            time.sleep(PRESS_RELEASE_DELAY)
-            dongle.send_rps_command(sid_a, OPUS_RELEASE, status=STATUS_RELEASED)
+            try:
+                _LOGGER.warning(
+                    ">>> Test A: Sending ON with sender=%s",
+                    format_id(sid_a),
+                )
+                dongle.send_rps_command(
+                    sid_a, on_val, status=STATUS_PRESSED
+                )
+                time.sleep(PRESS_RELEASE_DELAY)
+                dongle.send_rps_command(
+                    sid_a, OPUS_RELEASE, status=STATUS_RELEASED
+                )
+                _LOGGER.warning(
+                    ">>> Test A DONE. Waiting %ds before Test B...", delay
+                )
+            except Exception:
+                _LOGGER.exception("Test A FAILED")
+                return
 
             time.sleep(delay)
 
-            _LOGGER.warning(">>> Test B: Sending ON with sender=%s", format_id(sid_b))
-            dongle.send_rps_command(sid_b, on_val, status=STATUS_PRESSED)
-            time.sleep(PRESS_RELEASE_DELAY)
-            dongle.send_rps_command(sid_b, OPUS_RELEASE, status=STATUS_RELEASED)
+            try:
+                _LOGGER.warning(
+                    ">>> Test B: Sending ON with sender=%s",
+                    format_id(sid_b),
+                )
+                dongle.send_rps_command(
+                    sid_b, on_val, status=STATUS_PRESSED
+                )
+                time.sleep(PRESS_RELEASE_DELAY)
+                dongle.send_rps_command(
+                    sid_b, OPUS_RELEASE, status=STATUS_RELEASED
+                )
+                _LOGGER.warning(">>> Test B DONE.")
+            except Exception:
+                _LOGGER.exception("Test B FAILED")
+                return
 
             _LOGGER.warning("=== SENDER-ID TEST COMPLETE ===")
 
