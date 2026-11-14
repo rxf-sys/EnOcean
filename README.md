@@ -189,6 +189,24 @@ switch entity with `on_data: 0x70` and `off_data: 0x50`.
 To remove a wrongly taught sender from one channel: lower switch to that
 channel, middle switch to `CLR`, send the same telegram once.
 
+### OPUS GN-A-R12V-MF-2 (561.177, 2-contact multifunction relay)
+
+The lower rotary switch selects the operating mode — leave it untouched. If it
+is set to `(2xS)`, the two contacts are independent and each is taught
+separately; otherwise the actuator is one logical channel. A direction
+pushbutton teaches the whole rocker (ON and OFF) in one step.
+
+| Teach-in for              | Upper switch | Middle switch | Action (`enocean_new.send_rps`) |
+| ------------------------- | ------------ | ------------- | ------------------------------- |
+| whole actuator (one channel) | `5`       | `LRN`         | `data_byte: 0x70`               |
+| contact 1 (mode `(2xS)`)  | `9`          | `LRN`         | `data_byte: 0x70`               |
+| contact 2 (mode `(2xS)`)  | `10`         | `LRN`         | `data_byte: 0x70`               |
+
+Then middle switch to `AUTO`, upper switch back to its noted position, and
+test `0x70` / `0x50`. If ON and OFF are swapped, swap `on_data` / `off_data`
+in the entity config. Never turn the upper switch while the middle switch is
+on `CLR`: turning it to the right stop three times clears the whole memory.
+
 ### Other actuators
 
 Set the teach-in function according to the actuator's manual, middle switch to

@@ -9,7 +9,8 @@ Ranges:
 | Range                       | Use               |
 | --------------------------- | ----------------- |
 | `FF:C8:31:81` .. `…:8F`     | unused (legacy tests, may still be taught somewhere; avoid) |
-| `FF:C8:31:90` .. `…:BF`     | lights / switch channels |
+| `FF:C8:31:90` .. `…:9F`     | SR-4 channels: actuator 13 → `90`–`93`, 14 → `94`–`97`, 15 → `98`–`9B` |
+| `FF:C8:31:A0` .. `…:BF`     | MF-2 contacts: actuator n, contact c → `0xA0 + 2·(n−1) + (c−1)` (1.1 = `A0`, 1.2 = `A1`, 2.1 = `A2`, …, 16.2 = `BF`); one logical channel uses the `.1` ID |
 | `FF:C8:31:C0` .. `…:DF`     | blinds (JRG-2)    |
 
 Allocation:
