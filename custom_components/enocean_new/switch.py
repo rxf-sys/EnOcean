@@ -15,7 +15,7 @@ import voluptuous as vol
 from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, PlatformNotReady
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -60,12 +60,9 @@ async def async_setup_platform(
 ) -> None:
     """Set up the EnOcean switch platform from YAML."""
     if DOMAIN not in hass.data or DATA_DONGLE not in hass.data[DOMAIN]:
-        _LOGGER.error(
-            "EnOcean dongle is not initialised. Configure it via the UI "
-            "or add `enocean_new:` to configuration.yaml before defining "
-            "switch entities."
-        )
-        return
+        # The dongle may still be starting (or retrying after the USB stick
+        # appeared late); Home Assistant retries the platform setup.
+        raise PlatformNotReady("EnOcean dongle is not initialised yet")
 
     sender_id: List[int] = config[CONF_SENDER_ID]
     receiver_id: Optional[List[int]] = config.get(CONF_RECEIVER_ID)

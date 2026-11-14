@@ -93,12 +93,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         try:
             await _setup_dongle(hass, device_path)
         except (DongleError, serial.SerialException) as err:
+            # Do not fail the whole integration: a UI config entry for the
+            # same stick retries (ConfigEntryNotReady) and the entity
+            # platforms wait for the dongle (PlatformNotReady).
             _LOGGER.error(
                 "Failed to set up EnOcean dongle from YAML on %s: %s",
                 device_path,
                 err,
             )
-            return False
     return True
 
 
