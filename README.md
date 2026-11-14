@@ -207,6 +207,24 @@ test `0x70` / `0x50`. If ON and OFF are swapped, swap `on_data` / `off_data`
 in the entity config. Never turn the upper switch while the middle switch is
 on `CLR`: turning it to the right stop three times clears the whole memory.
 
+### OPUS GN-A-R12V-JRG-2 (561.153, 2-motor blinds actuator)
+
+Equivalent to Eltako FSB12. The upper switch (`RV`, motor run time) and the
+middle switch (`WA`, slat turning time) are also used for teach-in, so note
+both positions first and restore them afterwards. The lower switch selects the
+operating mode — leave it untouched.
+
+| Teach-in for | Upper switch (`RV`) | Middle switch | Action (`enocean_new.send_rps`) |
+| ------------ | ------------------- | ------------- | ------------------------------- |
+| motor 1      | `10` (direction pushbutton motor 1) | `LRN` | `data_byte: 0x70` |
+| motor 2      | `30` (direction pushbutton motor 2) | `LRN` | `data_byte: 0x70` |
+
+With a direction pushbutton the top key (`0x70`) moves up and the bottom key
+(`0x50`) moves down; a press while moving stops. If only one direction reacts
+after teach-in, repeat the step with `data_byte: 0x50`. Configure the cover
+with the defaults `up_data: 0x70`, `down_data: 0x50`. As with the other
+actuators, never turn the upper switch while the middle switch is on `CLR`.
+
 ### Other actuators
 
 Set the teach-in function according to the actuator's manual, middle switch to
