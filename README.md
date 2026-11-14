@@ -22,7 +22,7 @@ driven from Home Assistant.
 | --------------- | ---------------------------------------------------------------------- |
 | Dongle          | EnOcean USB 300 (FTDI, USB id `0403:6015`), base ID `FF:C8:31:80`      |
 | Radio receiver  | OPUS antenna module GN-E-R12V-AM (561.151) on the greenNet RS485 bus   |
-| Actuators       | OPUS GN-A-R12V-MF-2 (561.177), RS485 bus actuators without own radio   |
+| Actuators       | OPUS GN-A-R12V-SR-4 (561.152) 4-channel switch, GN-A-R12V-JRG-2 (561.153) blinds; RS485 bus actuators without own radio |
 | Home Assistant  | HAOS in a Proxmox VM, Core 2026.5.4                                    |
 
 The OPUS REG actuators receive radio telegrams only through the antenna
@@ -64,8 +64,8 @@ starting at its base ID**. A base ID is always in `FF:80:00:00 ..
 FF:FF:FF:80` and a multiple of 128. Entities and service calls with any other
 sender ID are refused.
 
-* Give every actuator (or every independently switched contact) its own
-  sender ID, e.g. `base + 1`, `base + 2`, …
+* Give every actuator channel its own sender ID. The allocation used in this
+  installation is kept in [`docs/devices.md`](docs/devices.md).
 * Never write a new base ID to the dongle: it can only be changed about 10
   times, and every actuator would have to be taught again.
 * A replacement dongle has a different base ID, so all actuators must be
@@ -147,23 +147,35 @@ sensor:
     device_class: humidity
 ```
 
-## Teach-in procedure (OPUS GN-A-R12V / Eltako Series 12 style)
+## Teach-in procedure
 
-Teach **one actuator at a time**; in LRN mode an actuator stores the very next
-telegram it receives.
+In LRN mode an actuator stores the very next telegram it receives (a window
+contact sending at that moment would be learned too). Prepare the service call
+before switching to LRN and send it right away. Teaching adds a sender; it
+does not remove the wall switches already taught.
 
-1. Write down the wall switches taught to the actuator: clearing deletes them.
-2. Clear the actuator: middle rotary switch to `CLR`, then within 10 s turn
-   the upper rotary switch to the right stop and back three times. The LED
-   goes out.
-3. Note the position of the upper rotary switch, then set it to the
-   teach-in function (e.g. direction pushbutton) according to the actuator's
-   manual, and turn the middle switch to `LRN`.
-4. Call `enocean_new.teach_in` with the actuator's `sender_id` (optionally a
-   `data_byte`). The LED stops flashing when the telegram was received.
-5. Middle switch back to `AUTO`, upper switch back to its noted position.
-6. Test ON / OFF, check that no other actuator reacts, then teach the wall
-   switches again.
+### OPUS GN-A-R12V-SR-4 (561.152, 4-channel switch actuator) — verified
+
+Each channel is taught separately, ON and OFF as two steps (direction
+pushbutton). Note the positions of all three rotary switches first.
+
+| Step | Lower switch | Upper switch | Middle switch | Action (`enocean_new.send_rps`) | LED |
+| ---- | ------------ | ------------ | ------------- | ------------------------------- | --- |
+| ON   | channel 1–4  | `0`          | `LRN`         | `data_byte: 0x70`               | flashes, then off |
+| OFF  | same channel | `2`          | `AUTO` → `LRN`| `data_byte: 0x50`               | flashes, then off |
+| Done | `AUTO`       | noted position | `AUTO`      | –                               | –   |
+
+`0` is the stop directly left of `2` on the upper (EW) scale. Configure the
+switch entity with `on_data: 0x70` and `off_data: 0x50`.
+
+To remove a wrongly taught sender from one channel: lower switch to that
+channel, middle switch to `CLR`, send the same telegram once.
+
+### Other actuators
+
+Set the teach-in function according to the actuator's manual, middle switch to
+`LRN`, send the telegram, then return all switches to their previous
+positions. Test ON / OFF and check that no other actuator reacts.
 
 `enocean_new.test_sender` sends ON/OFF from two different offsets to verify
 that an actuator reacts only to its own sender ID.
