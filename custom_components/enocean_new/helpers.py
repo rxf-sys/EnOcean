@@ -12,3 +12,6 @@ ENOCEAN_ID = vol.All(
     vol.Length(min=4, max=4, msg="EnOcean IDs must be exactly 4 bytes"),
     [vol.All(vol.Coerce(int), vol.Range(min=0, max=255))],
 )
+
+#: A single RPS data byte (0..255), e.g. 0x70 for rocker B top.
+DATA_BYTE = vol.All(vol.Coerce(int), vol.Range(min=0, max=255))
