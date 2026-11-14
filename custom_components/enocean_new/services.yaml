@@ -7,10 +7,11 @@ send_rps:
     sender_id:
       name: Sender ID
       description: >-
-        4-byte sender address. Must be within the dongle's valid range
-        (base_id .. base_id + 127).
+        4-byte sender address. Must be the dongle's chip ID or within
+        base_id .. base_id + 127 (both are logged at startup); other IDs
+        are refused.
       required: true
-      example: "[0x05, 0xA7, 0x90, 0x64]"
+      example: "[0xFF, 0xC8, 0x31, 0x81]"
       selector:
         object:
     data_byte:
@@ -52,26 +53,26 @@ send_rps:
 teach_in:
   name: Teach-in actuator
   description: >-
-    Send a teach-in RPS telegram for a specific sender_id and channel.
-    Put your actuator in teach-in mode BEFORE calling this service.
-    Channel 0 uses Rocker B (0x50/0x70), channel 1 uses Rocker A (0x10/0x30).
-    Each actuator should be taught with a UNIQUE combination of sender_id + channel.
+    Send a teach-in RPS telegram (press + release) for a specific sender_id.
+    Put ONLY the target actuator in LRN mode BEFORE calling this service.
+    By default the ON telegram of the channel is sent (channel 0 = 0x50,
+    channel 1 = 0x10); set data_byte to teach with another rocker key.
+    Use a UNIQUE sender_id per actuator.
   fields:
     sender_id:
       name: Sender ID
       description: >-
-        4-byte sender address for this actuator. Must be within the dongle's
-        valid range (base_id .. base_id + 127). Use a different sender_id
-        for each pair of actuators (2 channels per sender_id).
+        4-byte sender address for this actuator. Must be the dongle's chip ID
+        or within base_id .. base_id + 127.
       required: true
-      example: "[0x05, 0xA7, 0x90, 0x64]"
+      example: "[0xFF, 0xC8, 0x31, 0x81]"
       selector:
         object:
     channel:
       name: Channel
       description: >-
-        Rocker channel: 0 = Rocker B (default), 1 = Rocker A.
-        Two actuators can share the same sender_id if they use different channels.
+        Rocker channel used for the default data byte:
+        0 = Rocker B (default), 1 = Rocker A.
       required: false
       default: 0
       selector:
@@ -79,16 +80,28 @@ teach_in:
           min: 0
           max: 1
           mode: box
+    data_byte:
+      name: Data byte
+      description: >-
+        Optional rocker key to teach with, overriding the channel default.
+        0x70 = B0 (rocker B top), 0x50 = BI (rocker B bottom),
+        0x30 = A0 (rocker A top), 0x10 = AI (rocker A bottom).
+      required: false
+      example: "0x70"
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: box
 
 test_sender:
   name: Test sender_id differentiation
   description: >-
-    Diagnostic test: sends ON commands with two different sender_id offsets,
-    separated by a configurable delay. Watch which actuators react to each test.
-    If an actuator responds to BOTH tests, the dongle is replacing sender_ids
-    with the base_id. If it responds to only ONE, sender_id offsets work correctly.
-    IMPORTANT: Un-teach all actuators first, then teach ONE actuator with
-    sender_id = base_id + offset_a and channel 0 before running this test.
+    Diagnostic test: for two different sender_id offsets, sends ON, waits,
+    sends OFF (channel 0 data bytes). Watch which actuators react to each test.
+    An actuator taught with base_id + offset_a must react ONLY to test A.
+    If it also reacts to test B, it was taught with another ID as well
+    (clear its memory and teach it again).
   fields:
     sender_offset_a:
       name: Sender offset A

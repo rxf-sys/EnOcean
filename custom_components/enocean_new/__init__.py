@@ -11,23 +11,22 @@ from __future__ import annotations
 import logging
 import time
 
+import serial
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DEVICE
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CHANNEL_ON_OFF,
     DATA_DONGLE,
     DOMAIN,
-    OPUS_RELEASE,
-    PRESS_RELEASE_DELAY,
     STATUS_PRESSED,
-    STATUS_RELEASED,
 )
-from .dongle import EnOceanDongle, format_id
+from .dongle import DongleError, EnOceanDongle, format_id
 from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +63,9 @@ SERVICE_TEACH_IN_SCHEMA = vol.Schema(
     {
         vol.Required("sender_id"): ENOCEAN_ID,
         vol.Optional("channel", default=0): vol.In([0, 1]),
+        vol.Optional("data_byte"): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=255)
+        ),
     }
 )
 
@@ -90,7 +92,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         device_path = config[DOMAIN][CONF_DEVICE]
         try:
             await _setup_dongle(hass, device_path)
-        except Exception as err:  # noqa: BLE001
+        except (DongleError, serial.SerialException) as err:
             _LOGGER.error(
                 "Failed to set up EnOcean dongle from YAML on %s: %s",
                 device_path,
@@ -106,11 +108,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device_path = entry.data[CONF_DEVICE]
     try:
         await _setup_dongle(hass, device_path)
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.error(
-            "Failed to set up EnOcean dongle on %s: %s", device_path, err
-        )
-        return False
+    except (DongleError, serial.SerialException) as err:
+        raise ConfigEntryNotReady(
+            f"Failed to set up EnOcean dongle on {device_path}: {err}"
+        ) from err
     return True
 
 
@@ -139,38 +140,51 @@ async def _setup_dongle(hass: HomeAssistant, device_path: str) -> None:
     _register_services(hass)
 
 
+def _get_dongle(hass: HomeAssistant) -> EnOceanDongle:
+    """Return the active dongle or raise a user-visible error."""
+    dongle: EnOceanDongle | None = hass.data.get(DOMAIN, {}).get(DATA_DONGLE)
+    if dongle is None:
+        raise HomeAssistantError("EnOcean dongle is not initialised")
+    return dongle
+
+
+def _check_sender(dongle: EnOceanDongle, sender_id) -> None:
+    """Raise a user-visible error if the dongle may not send with sender_id."""
+    if not dongle.is_valid_sender(sender_id):
+        raise HomeAssistantError(
+            f"Sender ID {format_id(sender_id)} is not allowed for this dongle. "
+            f"Valid: {dongle.sender_range_str()}"
+        )
+
+
+async def _run_dongle_job(hass: HomeAssistant, job) -> None:
+    """Run a blocking dongle job and turn DongleError into a user-visible error."""
+    try:
+        await hass.async_add_executor_job(job)
+    except DongleError as err:
+        raise HomeAssistantError(str(err)) from err
+
+
 def _register_services(hass: HomeAssistant) -> None:
     """Register integration-wide services."""
     if hass.services.has_service(DOMAIN, SERVICE_SEND_RPS):
         return
 
     async def _async_handle_send_rps(call: ServiceCall) -> None:
-        dongle: EnOceanDongle | None = hass.data.get(DOMAIN, {}).get(DATA_DONGLE)
-        if dongle is None:
-            _LOGGER.error("send_rps: dongle is not initialised")
-            return
-
+        dongle = _get_dongle(hass)
         sender_id = call.data["sender_id"]
         data_byte = call.data["data_byte"]
         status = call.data["status"]
         press_release = call.data["press_release"]
-
-        if not dongle.is_valid_sender(sender_id):
-            _LOGGER.warning(
-                "send_rps: sender_id %s is outside the dongle's valid "
-                "range (base_id..base_id+127). The dongle will refuse to send.",
-                format_id(sender_id),
-            )
+        _check_sender(dongle, sender_id)
 
         def _do_send() -> None:
-            dongle.send_rps_command(sender_id, data_byte, status=status)
             if press_release:
-                time.sleep(PRESS_RELEASE_DELAY)
-                dongle.send_rps_command(
-                    sender_id, OPUS_RELEASE, status=STATUS_RELEASED
-                )
+                dongle.send_rps_press_release(sender_id, data_byte, status)
+            else:
+                dongle.send_rps_command(sender_id, data_byte, status=status)
 
-        await hass.async_add_executor_job(_do_send)
+        await _run_dongle_job(hass, _do_send)
 
     hass.services.async_register(
         DOMAIN,
@@ -181,49 +195,26 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def _async_handle_teach_in(call: ServiceCall) -> None:
         """Send a teach-in RPS telegram (press + release) for a specific channel."""
-        dongle: EnOceanDongle | None = hass.data.get(DOMAIN, {}).get(DATA_DONGLE)
-        if dongle is None:
-            _LOGGER.error("teach_in: dongle is not initialised")
-            return
-
+        dongle = _get_dongle(hass)
         sender_id = call.data["sender_id"]
         channel = call.data["channel"]
-        on_val, off_val = CHANNEL_ON_OFF.get(channel, CHANNEL_ON_OFF[0])
+        on_val = call.data.get("data_byte", CHANNEL_ON_OFF[channel][0])
+        _check_sender(dongle, sender_id)
 
         _LOGGER.warning(
             "TEACH-IN: Sending RPS press+release with sender_id=%s "
-            "channel=%d (ON=0x%02X, OFF=0x%02X). "
-            "Put your actuator in teach-in mode NOW, then call this service.",
+            "channel=%d data=0x%02X. The actuator must be in LRN mode.",
             format_id(sender_id),
             channel,
             on_val,
-            off_val,
         )
-
-        if not dongle.is_valid_sender(sender_id):
-            _LOGGER.error(
-                "teach_in: sender_id %s is OUTSIDE the valid range. "
-                "Use base_id (%s) + offset 0..127.",
-                format_id(sender_id),
-                format_id(dongle.base_id) if dongle.base_id else "unknown",
-            )
-            return
-
-        def _do_teach() -> None:
-            dongle.send_rps_command(
-                sender_id, on_val, status=STATUS_PRESSED
-            )
-            time.sleep(PRESS_RELEASE_DELAY)
-            dongle.send_rps_command(
-                sender_id, OPUS_RELEASE, status=STATUS_RELEASED
-            )
-
-        await hass.async_add_executor_job(_do_teach)
+        await _run_dongle_job(
+            hass, lambda: dongle.send_rps_press_release(sender_id, on_val)
+        )
         _LOGGER.warning(
-            "TEACH-IN: Telegram sent for sender_id=%s channel=%d. "
-            "Check if ONLY the target actuator confirmed the teach-in.",
+            "TEACH-IN: Telegram acknowledged by the dongle for sender_id=%s. "
+            "Check that ONLY the target actuator confirmed the teach-in.",
             format_id(sender_id),
-            channel,
         )
 
     hass.services.async_register(
@@ -234,41 +225,32 @@ def _register_services(hass: HomeAssistant) -> None:
     )
 
     async def _async_handle_test_sender(call: ServiceCall) -> None:
-        """Send test telegrams with two different sender_id offsets.
-
-        This helps diagnose whether the USB300 dongle actually transmits
-        with different sender addresses or always uses the base_id.
+        """Send ON and OFF telegrams with two different sender_id offsets.
 
         Procedure:
-        1. Un-teach all actuators first.
-        2. Teach ONE actuator with sender_id = base_id + offset_a, channel 0.
-        3. Call this service.
-        4. Watch: the actuator should react ONLY to "Test A", NOT to "Test B".
-        5. If it reacts to both → dongle replaces sender_id with base_id.
+        1. Teach ONE actuator with sender_id = base_id + offset_a, channel 0.
+        2. Call this service.
+        3. Watch: the actuator should react ONLY to "Test A" (ON, then OFF),
+           NOT to "Test B".
         """
-        dongle: EnOceanDongle | None = hass.data.get(DOMAIN, {}).get(DATA_DONGLE)
-        if dongle is None:
-            _LOGGER.error("test_sender: dongle is not initialised")
-            return
-
+        dongle = _get_dongle(hass)
         if not dongle.base_id:
-            _LOGGER.error("test_sender: base_id unknown, cannot compute offsets")
-            return
+            raise HomeAssistantError("Base ID unknown, cannot compute offsets")
 
-        base = int.from_bytes(dongle.base_id, "big")
+        base = int.from_bytes(bytes(dongle.base_id), "big")
         offset_a = call.data["sender_offset_a"]
         offset_b = call.data["sender_offset_b"]
         delay = call.data["delay"]
 
         sid_a = list((base + offset_a).to_bytes(4, "big"))
         sid_b = list((base + offset_b).to_bytes(4, "big"))
-        on_val = CHANNEL_ON_OFF[0][0]  # Rocker B ON
+        on_val, off_val = CHANNEL_ON_OFF[0]
 
         _LOGGER.warning(
             "=== SENDER-ID TEST START ===\n"
             "  Test A: sender_id=%s (base+%d)\n"
             "  Test B: sender_id=%s (base+%d)\n"
-            "  Delay between tests: %ds\n"
+            "  Each test sends ON, waits %ds, sends OFF.\n"
             "  Watch which actuators react to each test!",
             format_id(sid_a), offset_a,
             format_id(sid_b), offset_b,
@@ -276,47 +258,20 @@ def _register_services(hass: HomeAssistant) -> None:
         )
 
         def _do_test() -> None:
-            try:
+            for label, sid in (("A", sid_a), ("B", sid_b)):
                 _LOGGER.warning(
-                    ">>> Test A: Sending ON with sender=%s",
-                    format_id(sid_a),
+                    ">>> Test %s: ON with sender=%s", label, format_id(sid)
                 )
-                dongle.send_rps_command(
-                    sid_a, on_val, status=STATUS_PRESSED
-                )
-                time.sleep(PRESS_RELEASE_DELAY)
-                dongle.send_rps_command(
-                    sid_a, OPUS_RELEASE, status=STATUS_RELEASED
-                )
+                dongle.send_rps_press_release(sid, on_val)
+                time.sleep(delay)
                 _LOGGER.warning(
-                    ">>> Test A DONE. Waiting %ds before Test B...", delay
+                    ">>> Test %s: OFF with sender=%s", label, format_id(sid)
                 )
-            except Exception:
-                _LOGGER.exception("Test A FAILED")
-                return
-
-            time.sleep(delay)
-
-            try:
-                _LOGGER.warning(
-                    ">>> Test B: Sending ON with sender=%s",
-                    format_id(sid_b),
-                )
-                dongle.send_rps_command(
-                    sid_b, on_val, status=STATUS_PRESSED
-                )
-                time.sleep(PRESS_RELEASE_DELAY)
-                dongle.send_rps_command(
-                    sid_b, OPUS_RELEASE, status=STATUS_RELEASED
-                )
-                _LOGGER.warning(">>> Test B DONE.")
-            except Exception:
-                _LOGGER.exception("Test B FAILED")
-                return
-
+                dongle.send_rps_press_release(sid, off_val)
+                time.sleep(delay)
             _LOGGER.warning("=== SENDER-ID TEST COMPLETE ===")
 
-        await hass.async_add_executor_job(_do_test)
+        await _run_dongle_job(hass, _do_test)
 
     hass.services.async_register(
         DOMAIN,

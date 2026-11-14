@@ -1,15 +1,13 @@
 """Switch platform for OPUS / EnOcean classic actuators (RPS-controlled).
 
-Supports a ``channel`` parameter (0 or 1) that selects which virtual rocker
-is used for ON/OFF.  This is critical for USB300 dongles whose firmware always
-transmits with the base_id: the *channel* is then the only way to address
-independent actuators from the same sender address.
+``channel`` (0 = rocker B, 1 = rocker A) selects the default ON/OFF data
+bytes; ``on_data`` / ``off_data`` override them for actuators that interpret
+the rocker the other way round.
 """
 
 from __future__ import annotations
 
 import logging
-import time
 from typing import List, Optional
 
 import voluptuous as vol
@@ -17,6 +15,7 @@ import voluptuous as vol
 from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -24,20 +23,18 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from .const import (
     CHANNEL_ON_OFF,
     CONF_CHANNEL,
+    CONF_OFF_DATA,
+    CONF_ON_DATA,
     CONF_RECEIVER_ID,
     CONF_SENDER_ID,
     DATA_DONGLE,
     DOMAIN,
-    OPUS_RELEASE,
-    PRESS_RELEASE_DELAY,
     RORG_1BS,
     RORG_RPS,
-    STATUS_PRESSED,
-    STATUS_RELEASED,
 )
 from .device import EnOceanDevice
-from .dongle import format_id
-from .helpers import ENOCEAN_ID
+from .dongle import DongleError, format_id
+from .helpers import DATA_BYTE, ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +46,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_RECEIVER_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_CHANNEL, default=0): vol.In([0, 1]),
+        vol.Optional(CONF_ON_DATA): DATA_BYTE,
+        vol.Optional(CONF_OFF_DATA): DATA_BYTE,
     }
 )
 
@@ -72,18 +71,27 @@ async def async_setup_platform(
     receiver_id: Optional[List[int]] = config.get(CONF_RECEIVER_ID)
     name: str = config[CONF_NAME]
     channel: int = config[CONF_CHANNEL]
+    default_on, default_off = CHANNEL_ON_OFF[channel]
+    on_value: int = config.get(CONF_ON_DATA, default_on)
+    off_value: int = config.get(CONF_OFF_DATA, default_off)
 
     dongle = hass.data[DOMAIN][DATA_DONGLE]
     if not dongle.is_valid_sender(sender_id):
-        _LOGGER.warning(
-            "Switch '%s' sender_id %s is outside the dongle's valid range "
-            "(base_id .. base_id+127). The dongle will refuse to send.",
+        _LOGGER.error(
+            "Switch '%s' not created: sender_id %s is not allowed for this "
+            "dongle. Valid: %s",
             name,
             format_id(sender_id),
+            dongle.sender_range_str(),
         )
+        return
 
     async_add_entities(
-        [EnOceanSwitch(hass, sender_id, receiver_id, name, channel)]
+        [
+            EnOceanSwitch(
+                hass, sender_id, receiver_id, name, channel, on_value, off_value
+            )
+        ]
     )
 
 
@@ -98,7 +106,9 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
         sender_id: List[int],
         receiver_id: Optional[List[int]],
         name: str,
-        channel: int = 0,
+        channel: int,
+        on_value: int,
+        off_value: int,
     ) -> None:
         EnOceanDevice.__init__(self, hass, sender_id, name)
         self._sender_id: List[int] = [int(b) & 0xFF for b in sender_id]
@@ -107,11 +117,13 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
         )
         self._attr_name = name
         self._attr_is_on = False
-        self._attr_assumed_state = self._receiver_id is None
+        # Classic RPS actuators (e.g. OPUS greenNet REG) send no status, so
+        # the state is always optimistic. receiver_id feedback, if any,
+        # merely corrects it.
+        self._attr_assumed_state = True
 
-        on_val, off_val = CHANNEL_ON_OFF.get(channel, CHANNEL_ON_OFF[0])
-        self._on_value = on_val
-        self._off_value = off_val
+        self._on_value = on_value
+        self._off_value = off_value
         self._channel = channel
 
         self._attr_unique_id = (
@@ -166,13 +178,12 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
     # ------------------------------------------------------------------ #
     def _send_press_release(self, button_value: int) -> None:
         """Send press-then-release telegrams using the configured sender_id."""
-        self.dongle.send_rps_command(
-            self._sender_id, button_value, status=STATUS_PRESSED
-        )
-        time.sleep(PRESS_RELEASE_DELAY)
-        self.dongle.send_rps_command(
-            self._sender_id, OPUS_RELEASE, status=STATUS_RELEASED
-        )
+        try:
+            self.dongle.send_rps_press_release(self._sender_id, button_value)
+        except DongleError as err:
+            raise HomeAssistantError(
+                f"{self._attr_name}: sending failed: {err}"
+            ) from err
 
     def turn_on(self, **kwargs) -> None:
         _LOGGER.debug(

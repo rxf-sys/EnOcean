@@ -1,10 +1,9 @@
 """EnOcean USB300 dongle driver with a minimal ESP3 implementation.
 
-This module deliberately does NOT use the upstream ``enocean`` Python library
-because that library overwrites the sender address of every outgoing radio
-telegram with the dongle's base ID. For OPUS classic devices we MUST be able
-to send distinct sender IDs (base_id + offset 1..127) so that each actor can
-be teached in to a unique virtual rocker switch.
+This module deliberately does NOT use the upstream ``enocean`` Python library.
+It talks ESP3 directly so that every outgoing RPS telegram carries exactly the
+configured sender ID (chip ID or base_id + 0..127) and so that the dongle's
+RESPONSE to every command is checked.
 
 The ESP3 frame format implemented here is:
 
@@ -20,25 +19,41 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Callable, List, Optional
 
 import serial
 
 from .const import (
+    BASE_ID_BLOCK,
+    BASE_ID_MAX,
+    BASE_ID_MIN,
     CO_RD_IDBASE,
     CO_RD_VERSION,
     DEFAULT_BAUDRATE,
     ESP3_SYNC_BYTE,
+    OPUS_RELEASE,
     PACKET_COMMON_COMMAND,
     PACKET_RADIO_ERP1,
     PACKET_RESPONSE,
+    PRESS_RELEASE_DELAY,
+    RESPONSE_TIMEOUT,
+    RET_OK,
+    RETURN_CODE_NAMES,
     RORG_1BS,
     RORG_4BS,
     RORG_RPS,
     RORG_VLD,
+    STARTUP_RESPONSE_TIMEOUT,
+    STATUS_PRESSED,
+    STATUS_RELEASED,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class DongleError(Exception):
+    """The dongle is not connected, did not answer or rejected a command."""
 
 
 def crc8(data: bytes) -> int:
@@ -59,6 +74,14 @@ def format_id(id_bytes) -> str:
     return ":".join(f"{b:02X}" for b in id_bytes)
 
 
+def is_plausible_base_id(base_id) -> bool:
+    """Return True if base_id is a valid ESP3 base ID (0xFF800000..0xFFFFFF80, 128-aligned)."""
+    if base_id is None or len(base_id) != 4:
+        return False
+    value = int.from_bytes(bytes(base_id), "big")
+    return BASE_ID_MIN <= value <= BASE_ID_MAX and value % BASE_ID_BLOCK == 0
+
+
 class EnOceanDongle:
     """Minimal driver for the EnOcean USB300 dongle (ESP3 over serial)."""
 
@@ -68,17 +91,36 @@ class EnOceanDongle:
         self._serial: Optional[serial.Serial] = None
         self._thread: Optional[threading.Thread] = None
         self._running = False
+        self._reader_error: Optional[str] = None
         self._listeners: List[Callable[[dict], None]] = []
-        self._write_lock = threading.Lock()
+        # Serialises request/response pairs so a RESPONSE is never matched
+        # to the wrong command.
+        self._transact_lock = threading.Lock()
+        # Keeps press + release telegrams of one button action together.
+        self._sequence_lock = threading.Lock()
         self._response_event = threading.Event()
         self._last_response: Optional[dict] = None
         self.base_id: Optional[List[int]] = None
+        self.chip_id: Optional[List[int]] = None
 
     # ------------------------------------------------------------------ #
     # Connection management
     # ------------------------------------------------------------------ #
+    @property
+    def connected(self) -> bool:
+        """Return True while the port is open and the reader thread runs."""
+        return (
+            self._serial is not None
+            and self._thread is not None
+            and self._thread.is_alive()
+        )
+
     def connect(self) -> None:
-        """Open the serial port and start the read loop."""
+        """Open the serial port, start the read loop and identify the dongle.
+
+        Raises DongleError if the dongle does not answer or reports an
+        implausible base ID; the port is closed again in that case.
+        """
         _LOGGER.info("Opening EnOcean dongle on %s", self.port)
         self._serial = serial.Serial(
             self.port,
@@ -87,7 +129,10 @@ class EnOceanDongle:
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             timeout=0.1,
+            exclusive=True,
         )
+        self._serial.reset_input_buffer()
+        self._reader_error = None
         self._running = True
         self._thread = threading.Thread(
             target=self._read_loop, name="enocean_new_reader", daemon=True
@@ -96,39 +141,37 @@ class EnOceanDongle:
 
         try:
             self.base_id = self._read_base_id()
-            if self.base_id:
-                base_int = int.from_bytes(self.base_id, "big")
-                end_id = list((base_int + 127).to_bytes(4, "big"))
-                _LOGGER.info(
-                    "EnOcean dongle base_id: %s  "
-                    "Valid sender range: %s .. %s (128 addresses)",
-                    format_id(self.base_id),
-                    format_id(self.base_id),
-                    format_id(end_id),
-                )
-                _LOGGER.info(
-                    "Use service enocean_new.test_sender to verify if the "
-                    "dongle supports different sender addresses. "
-                    "Use enocean_new.teach_in to teach actuators."
-                )
-            else:
-                _LOGGER.warning("Could not read base ID from dongle")
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Error while reading base ID")
+        except DongleError as err:
+            self.disconnect()
+            raise DongleError(
+                f"EnOcean dongle on {self.port} did not report its base ID: "
+                f"{err}. Make sure no other add-on or integration (e.g. an "
+                "EnOcean MQTT bridge or the core enocean integration) uses "
+                "the same stick."
+            ) from err
+
+        base_int = int.from_bytes(bytes(self.base_id), "big")
+        _LOGGER.info(
+            "EnOcean dongle base_id: %s  Valid sender range: %s .. %s "
+            "(128 addresses)",
+            format_id(self.base_id),
+            format_id(self.base_id),
+            format_id((base_int + BASE_ID_BLOCK - 1).to_bytes(4, "big")),
+        )
 
         try:
             version = self._read_version()
-            if version:
-                _LOGGER.info(
-                    "EnOcean dongle firmware: app=%s api=%s chip=%s "
-                    "description='%s'",
-                    version["app_version"],
-                    version["api_version"],
-                    version["chip_id"],
-                    version["app_description"],
-                )
-        except Exception:  # noqa: BLE001
-            _LOGGER.debug("Could not read dongle firmware version")
+        except DongleError as err:
+            _LOGGER.warning("Could not read dongle firmware version: %s", err)
+            return
+        self.chip_id = version["chip_id"]
+        _LOGGER.info(
+            "EnOcean dongle firmware: app=%s api=%s chip=%s description='%s'",
+            version["app_version"],
+            version["api_version"],
+            format_id(self.chip_id),
+            version["app_description"],
+        )
 
     def disconnect(self) -> None:
         """Stop the read loop and close the serial port."""
@@ -140,8 +183,8 @@ class EnOceanDongle:
         if self._serial is not None:
             try:
                 self._serial.close()
-            except Exception:  # noqa: BLE001
-                pass
+            except serial.SerialException as err:
+                _LOGGER.debug("Error while closing serial port: %s", err)
             self._serial = None
 
     # ------------------------------------------------------------------ #
@@ -161,31 +204,40 @@ class EnOceanDongle:
     # Sender-ID validation
     # ------------------------------------------------------------------ #
     def is_valid_sender(self, sender_id) -> bool:
-        """Return True if sender_id is in the dongle's allowed range.
+        """Return True if the dongle may transmit with sender_id.
 
-        The EnOcean USB300 will silently refuse to transmit telegrams whose
-        sender address is outside the range ``base_id .. base_id + 127``.
-        We treat the 4-byte ID as a 32-bit integer so byte boundary crossings
-        are handled correctly.
+        A TCM310/USB300 only transmits with its chip ID or with one of the
+        128 IDs starting at its base ID. The 4-byte IDs are compared as
+        32-bit integers so byte boundary crossings are handled correctly.
         """
-        if not self.base_id:
-            # Base ID could not be read - we cannot validate, allow.
-            return True
         if sender_id is None or len(sender_id) != 4:
             return False
-        base = (
-            (self.base_id[0] << 24)
-            | (self.base_id[1] << 16)
-            | (self.base_id[2] << 8)
-            | self.base_id[3]
+        sid = [int(b) & 0xFF for b in sender_id]
+        if self.chip_id is not None and sid == self.chip_id:
+            return True
+        return self._sender_offset(sid) is not None
+
+    def _sender_offset(self, sender_id) -> Optional[int]:
+        """Calculate the offset of sender_id from base_id."""
+        if not self.base_id or sender_id is None or len(sender_id) != 4:
+            return None
+        base = int.from_bytes(bytes(self.base_id), "big")
+        sid = int.from_bytes(bytes(sender_id), "big")
+        diff = sid - base
+        return diff if 0 <= diff < BASE_ID_BLOCK else None
+
+    def sender_range_str(self) -> str:
+        """Return a human readable description of the valid sender IDs."""
+        if not self.base_id:
+            return "unknown (base ID not read)"
+        base = int.from_bytes(bytes(self.base_id), "big")
+        text = (
+            f"{format_id(self.base_id)} .. "
+            f"{format_id((base + BASE_ID_BLOCK - 1).to_bytes(4, 'big'))}"
         )
-        sid = (
-            (int(sender_id[0]) << 24)
-            | (int(sender_id[1]) << 16)
-            | (int(sender_id[2]) << 8)
-            | int(sender_id[3])
-        )
-        return 0 <= (sid - base) <= 127
+        if self.chip_id:
+            text += f" or chip ID {format_id(self.chip_id)}"
+        return text
 
     # ------------------------------------------------------------------ #
     # Packet construction / send
@@ -216,39 +268,73 @@ class EnOceanDongle:
             + bytes([crc_d])
         )
 
-    def send_packet(
-        self, packet_type: int, data: bytes, optional_data: bytes = b""
-    ) -> None:
-        """Write a raw ESP3 frame to the dongle."""
-        if self._serial is None:
-            _LOGGER.error("Cannot send packet: serial port not open")
-            return
+    def transact(
+        self,
+        packet_type: int,
+        data: bytes,
+        optional_data: bytes = b"",
+        timeout: float = RESPONSE_TIMEOUT,
+    ) -> bytes:
+        """Send one ESP3 frame and wait for the dongle's RESPONSE.
+
+        Returns the RESPONSE data (starting with the return code). Raises
+        DongleError if the dongle is not connected, does not answer within
+        ``timeout`` seconds or returns a code other than RET_OK.
+        """
+        if not self.connected:
+            reason = f" ({self._reader_error})" if self._reader_error else ""
+            raise DongleError(
+                f"EnOcean dongle on {self.port} is not connected{reason}"
+            )
         packet = self.build_packet(packet_type, data, optional_data)
-        _LOGGER.debug("TX %s", packet.hex())
-        with self._write_lock:
+        with self._transact_lock:
+            self._response_event.clear()
+            self._last_response = None
+            _LOGGER.debug("TX %s", packet.hex())
             try:
                 self._serial.write(packet)
                 self._serial.flush()
             except serial.SerialException as err:
-                _LOGGER.error("Serial write failed: %s", err)
+                raise DongleError(f"Serial write failed: {err}") from err
+            if not self._response_event.wait(timeout):
+                raise DongleError(
+                    f"No RESPONSE from dongle within {timeout:.1f} s"
+                    + (f" ({self._reader_error})" if self._reader_error else "")
+                )
+            response = self._last_response
+
+        resp_data = response["data"] if response else b""
+        if not resp_data:
+            raise DongleError("Empty RESPONSE from dongle")
+        return_code = resp_data[0]
+        if return_code != RET_OK:
+            raise DongleError(
+                "Dongle rejected the command: "
+                + RETURN_CODE_NAMES.get(return_code, f"0x{return_code:02X}")
+            )
+        return resp_data
 
     def send_rps_command(
         self,
         sender_id,
         data_byte: int,
-        status: int = 0x30,
+        status: int = STATUS_PRESSED,
         destination: Optional[List[int]] = None,
     ) -> None:
-        """Send a RPS (F6) telegram with the EXACT sender_id provided.
+        """Send one RPS (F6) telegram with the EXACT sender_id provided.
 
-        The sender_id is placed directly into the ESP3 Radio ERP1 data field.
-        Per the ESP3 specification, the USB300 gateway should transmit with
-        this sender_id if it is within the valid range (base_id..base_id+127).
+        Raises DongleError if sender_id is not allowed for this dongle or the
+        dongle does not acknowledge the telegram.
         """
         if sender_id is None or len(sender_id) != 4:
             raise ValueError("sender_id must be a 4-byte sequence")
 
         sid = [int(b) & 0xFF for b in sender_id]
+        if not self.is_valid_sender(sid):
+            raise DongleError(
+                f"Sender ID {format_id(sid)} is not allowed for this dongle. "
+                f"Valid: {self.sender_range_str()}"
+            )
 
         data = bytes(
             [
@@ -270,86 +356,67 @@ class EnOceanDongle:
 
         offset = self._sender_offset(sid)
         _LOGGER.info(
-            "TX RPS sender=%s (base+%s) data=0x%02X status=0x%02X dest=%s",
+            "TX RPS sender=%s (%s) data=0x%02X status=0x%02X dest=%s",
             format_id(sid),
-            offset if offset is not None else "?",
+            f"base+{offset}" if offset is not None else "chip ID",
             data_byte,
             status,
             format_id(dest),
         )
-        self.send_packet(PACKET_RADIO_ERP1, data, optional)
+        self.transact(PACKET_RADIO_ERP1, data, optional)
 
-    def send_1bs_command(self, sender_id, data_byte: int) -> None:
-        """Send a 1BS (D5) telegram with the EXACT sender_id provided."""
-        if sender_id is None or len(sender_id) != 4:
-            raise ValueError("sender_id must be a 4-byte sequence")
-        sid = [int(b) & 0xFF for b in sender_id]
-        data = bytes(
-            [
-                RORG_1BS,
-                data_byte & 0xFF,
-                sid[0],
-                sid[1],
-                sid[2],
-                sid[3],
-                0x00,
-            ]
-        )
-        optional = bytes([0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00])
-        _LOGGER.debug(
-            "Send 1BS sender_id=%s data_byte=0x%02X",
-            format_id(sid),
-            data_byte,
-        )
-        self.send_packet(PACKET_RADIO_ERP1, data, optional)
+    def send_rps_press_release(
+        self, sender_id, data_byte: int, status: int = STATUS_PRESSED
+    ) -> None:
+        """Send a rocker press followed by the release telegram.
 
-    def _sender_offset(self, sender_id) -> Optional[int]:
-        """Calculate the offset of sender_id from base_id."""
-        if not self.base_id or sender_id is None or len(sender_id) != 4:
-            return None
-        base = int.from_bytes(self.base_id, "big")
-        sid = int.from_bytes(bytes(sender_id), "big")
-        diff = sid - base
-        return diff if 0 <= diff <= 127 else None
+        The release is only sent after the dongle acknowledged the press.
+        Both telegrams are kept together even if several actions run
+        concurrently.
+        """
+        with self._sequence_lock:
+            self.send_rps_command(sender_id, data_byte, status=status)
+            time.sleep(PRESS_RELEASE_DELAY)
+            self.send_rps_command(
+                sender_id, OPUS_RELEASE, status=STATUS_RELEASED
+            )
 
     # ------------------------------------------------------------------ #
     # Common commands
     # ------------------------------------------------------------------ #
-    def _read_base_id(self) -> Optional[List[int]]:
-        """Read the dongle's base ID via CO_RD_IDBASE."""
-        self._response_event.clear()
-        self._last_response = None
-        self.send_packet(PACKET_COMMON_COMMAND, bytes([CO_RD_IDBASE]))
-        if not self._response_event.wait(timeout=2.0):
-            return None
-        resp = self._last_response
-        if not resp:
-            return None
-        data = resp.get("data", b"")
+    def _read_base_id(self) -> List[int]:
+        """Read and validate the dongle's base ID via CO_RD_IDBASE."""
+        data = self.transact(
+            PACKET_COMMON_COMMAND,
+            bytes([CO_RD_IDBASE]),
+            timeout=STARTUP_RESPONSE_TIMEOUT,
+        )
         # Response: return_code (1) + base_id (4)
-        if len(data) >= 5:
-            return list(data[1:5])
-        return None
+        if len(data) < 5:
+            raise DongleError(f"Unexpected base ID response: {data.hex()}")
+        base_id = list(data[1:5])
+        if not is_plausible_base_id(base_id):
+            raise DongleError(
+                f"Implausible base ID {format_id(base_id)} "
+                "(expected FF:80:00:00 .. FF:FF:FF:80, 128-aligned)"
+            )
+        return base_id
 
-    def _read_version(self) -> Optional[dict]:
+    def _read_version(self) -> dict:
         """Read the dongle firmware version via CO_RD_VERSION."""
-        self._response_event.clear()
-        self._last_response = None
-        self.send_packet(PACKET_COMMON_COMMAND, bytes([CO_RD_VERSION]))
-        if not self._response_event.wait(timeout=2.0):
-            return None
-        resp = self._last_response
-        if not resp:
-            return None
-        data = resp.get("data", b"")
+        data = self.transact(
+            PACKET_COMMON_COMMAND,
+            bytes([CO_RD_VERSION]),
+            timeout=STARTUP_RESPONSE_TIMEOUT,
+        )
         # Response: return_code(1) + APP_VERSION(4) + API_VERSION(4)
         #           + CHIP_ID(4) + CHIP_VERSION(4) + APP_DESCRIPTION(16)
         if len(data) < 17:
-            return None
+            raise DongleError(f"Unexpected version response: {data.hex()}")
         return {
             "app_version": ".".join(str(b) for b in data[1:5]),
             "api_version": ".".join(str(b) for b in data[5:9]),
-            "chip_id": data[9:13].hex(),
+            "chip_id": list(data[9:13]),
             "chip_version": ".".join(str(b) for b in data[13:17]),
             "app_description": (
                 data[17:33].decode("ascii", errors="replace").rstrip("\x00")
@@ -367,9 +434,15 @@ class EnOceanDongle:
             try:
                 chunk = self._serial.read(64)
             except serial.SerialException as err:
-                _LOGGER.error("Serial read failed, stopping reader: %s", err)
+                self._reader_error = f"serial read failed: {err}"
+                _LOGGER.error(
+                    "Serial read failed, stopping reader: %s. Is another "
+                    "add-on or integration using the same stick?",
+                    err,
+                )
                 break
-            except Exception:  # noqa: BLE001
+            except Exception as err:  # noqa: BLE001
+                self._reader_error = f"unexpected reader error: {err}"
                 _LOGGER.exception("Unexpected error in read loop")
                 break
 
