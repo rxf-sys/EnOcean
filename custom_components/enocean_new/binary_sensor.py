@@ -13,6 +13,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.const import CONF_DEVICE_CLASS, CONF_ID, CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import PlatformNotReady
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -47,12 +48,9 @@ async def async_setup_platform(
 ) -> None:
     """Set up the EnOcean binary sensor platform from YAML."""
     if DOMAIN not in hass.data or DATA_DONGLE not in hass.data[DOMAIN]:
-        _LOGGER.error(
-            "EnOcean dongle is not initialised. Configure it via the UI "
-            "or add `enocean_new:` to configuration.yaml before defining "
-            "binary_sensor entities."
-        )
-        return
+        # The dongle may still be starting (or retrying after the USB stick
+        # appeared late); Home Assistant retries the platform setup.
+        raise PlatformNotReady("EnOcean dongle is not initialised yet")
 
     dev_id: List[int] = config[CONF_ID]
     name: str = config[CONF_NAME]

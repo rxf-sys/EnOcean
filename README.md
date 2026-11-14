@@ -41,6 +41,10 @@ therefore always *assumed* (optimistic).
 Alternative – manual install: copy `custom_components/enocean_new` into your
 HA `config/custom_components/` directory.
 
+Keep the UI config entry even if the dongle is also set in YAML: if the stick
+is not ready at boot (e.g. late USB passthrough in a VM), the config entry
+retries automatically and the entities are created once the dongle answers.
+
 **Only one program may use the stick.** Stop and disable autostart of any
 other EnOcean add-on (e.g. an EnOcean MQTT bridge) and remove the core
 `enocean` integration if it uses the same dongle. Otherwise the dongle does
