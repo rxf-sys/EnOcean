@@ -1,7 +1,8 @@
 # Devices and sender IDs
 
 Dongle: EnOcean USB 300, `/dev/serial/by-id/usb-EnOcean_GmbH_USB_300_DE_EOAQQB54-if00-port0`,
-base ID `FF:C8:31:80` (valid senders `FF:C8:31:80` .. `FF:C8:31:FF` and the chip ID).
+base ID `FF:C8:31:80` (valid senders `FF:C8:31:80` .. `FF:C8:31:FF`),
+chip ID `05:A7:90:63`, firmware app 2.15.0.0 / api 2.6.9.0 (`GATEWAYCTRL`).
 
 Ranges:
 
@@ -15,4 +16,4 @@ Allocation:
 
 | Sender ID     | Actuator / channel | Room     | Data bytes (ON / OFF) | Entity                    | Status |
 | ------------- | ------------------ | -------- | --------------------- | ------------------------- | ------ |
-| `FF:C8:31:90` | 13.1 (GN-A-R12V-SR-4) | Gäste-WC | `0x70` / `0x50`    | `switch.leuchte_gaste_wc` | taught and tested 14.11.2026 |
+| `FF:C8:31:90` | 13.1 (GN-A-R12V-SR-4) | Gäste-WC | `0x70` / `0x50`    | `switch.leuchte_gaste_wc` | taught, tested and in HA 14.11.2026 |
