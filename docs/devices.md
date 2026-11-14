@@ -17,3 +17,9 @@ Allocation:
 | Sender ID     | Actuator / channel | Room     | Data bytes (ON / OFF) | Entity                    | Status |
 | ------------- | ------------------ | -------- | --------------------- | ------------------------- | ------ |
 | `FF:C8:31:90` | 13.1 (GN-A-R12V-SR-4) | Gäste-WC | `0x70` / `0x50`    | `switch.leuchte_gaste_wc` | taught, tested and in HA 14.11.2026 |
+
+Wall switches (mirrored into HA via `wall_switches`):
+
+| Wall switch ID | Room     | ON key / OFF key           | Mirrors                   | Status |
+| -------------- | -------- | -------------------------- | ------------------------- | ------ |
+| `00:24:55:01`  | Gäste-WC | `0x50` bottom / `0x70` top | `switch.leuchte_gaste_wc` | direction pushbutton (bottom = on, top = off) observed 14.11.2026; ID and codes to be confirmed from log |

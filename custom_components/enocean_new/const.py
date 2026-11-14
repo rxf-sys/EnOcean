@@ -13,6 +13,7 @@ CONF_ON_DATA = "on_data"
 CONF_OFF_DATA = "off_data"
 CONF_UP_DATA = "up_data"
 CONF_DOWN_DATA = "down_data"
+CONF_WALL_SWITCHES = "wall_switches"
 
 # Default values
 DEFAULT_NAME = "EnOcean device"
@@ -93,6 +94,10 @@ STATUS_RELEASED = 0x20  # T21=1, NU=0
 
 # Event sent on the HA bus when a button is pressed
 EVENT_BUTTON_PRESSED = "enocean_new.button_pressed"
+
+# Seconds within which an identical rocker press (e.g. its repeated copy) is
+# ignored when mirroring wall switches.
+WALL_SWITCH_DEDUP_WINDOW = 0.7
 
 # Delay (seconds) between press and release telegrams
 PRESS_RELEASE_DELAY = 0.05

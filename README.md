@@ -93,6 +93,24 @@ switch:
 | `on_data`     | `0x50` (ch 0) / `0x10` (ch 1) | data byte sent for ON                   |
 | `off_data`    | `0x70` (ch 0) / `0x30` (ch 1) | data byte sent for OFF                  |
 | `receiver_id` | –                           | actuator ID for status feedback, only for actuators that send one |
+| `wall_switches` | –                         | wall switches taught to the same actuator; their presses update the state in HA |
+
+#### Following a wall switch
+
+The actuators send no status, so HA does not notice when the light is switched
+at the wall. List the wall switch (as seen in the log as `RX RADIO rorg=0xF6
+sender=...`) and the data bytes of its ON and OFF keys:
+
+```yaml
+    wall_switches:
+      - id: [0x00, 0x24, 0x55, 0x01]
+        on_data: 0x50    # key that switches the light on (here: bottom)
+        off_data: 0x70   # key that switches it off (here: top)
+```
+
+For a universal pushbutton (every press toggles) set `on_data` and `off_data`
+to the same value. A press received twice (directly and via a repeater) is
+counted once. Mirroring never transmits anything.
 
 Rocker keys (EEP F6-02): `0x30` = A0 (left top), `0x10` = AI (left bottom),
 `0x70` = B0 (right top), `0x50` = BI (right bottom). If ON and OFF are the
