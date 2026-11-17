@@ -1,0 +1,107 @@
+# Dashboard "EnOcean": paste into Settings → Dashboards → (new dashboard)
+# → ⋮ → Edit → ⋮ → Raw configuration editor.
+title: EnOcean
+views:
+  - title: Steuerung
+    path: steuerung
+    icon: mdi:home-lightning-bolt
+    cards:
+      - type: grid
+        title: Licht & Geräte
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.leuchte_gaste_wc
+            name: Gäste-WC
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.aquarium
+            icon: mdi:fishbowl
+          - type: tile
+            entity: switch.anlage
+            icon: mdi:speaker
+      - type: grid
+        title: Jalousien
+        columns: 2
+        square: false
+        cards:
+          - type: tile
+            entity: cover.jalousie_mila
+            name: Mila
+            features:
+              - type: cover-open-close
+          - type: tile
+            entity: cover.jalousie_lina
+            name: Lina
+            features:
+              - type: cover-open-close
+          - type: tile
+            entity: cover.jalousie_eltern
+            name: Eltern
+            features:
+              - type: cover-open-close
+          - type: tile
+            entity: cover.jalousie_bad
+            name: Bad
+            features:
+              - type: cover-open-close
+
+  - title: EnOcean-Monitor
+    path: monitor
+    icon: mdi:radio-tower
+    cards:
+      - type: markdown
+        title: Empfangene Telegramme (neueste oben)
+        content: |-
+          Drücke einen Taster oder öffne ein Fenster: Das Telegramm erscheint hier.
+          **„?“ = unbekanntes Gerät** – die ID kann dann in der Konfiguration eingetragen werden.
+
+          | Zeit | ID | Gerät | Typ | Daten | dBm |
+          |---|---|---|---|---|---|
+          {% for t in state_attr('sensor.enocean_monitor', 'telegrams') or [] -%}
+          | {{ t.time }} | `{{ t.sender_id }}` | {{ t.name }} | {{ {'0xF6': 'Taster', '0xD5': 'Kontakt', '0xA5': 'Sensor', '0xD2': 'VLD'}.get(t.rorg, t.rorg) }} | {{ t.data }} | {{ t.dbm }} |
+          {% endfor %}
+      - type: logbook
+        title: Verlauf (letzte 24 h)
+        hours_to_show: 24
+        entities:
+          - sensor.enocean_monitor
+      - type: markdown
+        title: Codes der Wipptaster
+        content: |-
+          | Daten | Taste |
+          |---|---|
+          | 0x30 | links oben (A0) |
+          | 0x10 | links unten (AI) |
+          | 0x70 | rechts oben (B0) |
+          | 0x50 | rechts unten (BI) |
+          | 0x00 | losgelassen |
+
+  - title: Automationen
+    path: automationen
+    icon: mdi:robot
+    cards:
+      - type: markdown
+        title: Neue Regel anlegen
+        content: |-
+          **[➕ Neue Automation](/config/automation/edit/new)** · **[📋 Vorlagen (Blueprints)](/config/blueprint/dashboard)** · **[⚙️ Alle Automationen](/config/automation/dashboard)**
+
+          | Art | Vorlage | Beispiel |
+          |---|---|---|
+          | ⏰ Zeitgesteuert | *EnOcean: Jalousien nach Zeitplan* | morgens 7:00 hoch, abends 21:00 runter |
+          | 🔘 Schaltergesteuert | *EnOcean: Wandtaster löst Aktion aus* | Taster links oben → alle Jalousien runter |
+          | 📡 Sensorgesteuert | *EnOcean: Sensor schaltet Licht* · *EnOcean: Fenster offen → Jalousie hoch* | Fensterkontakt öffnet → Jalousie fährt hoch |
+
+          Vorlage öffnen → „Automation erstellen“ → Felder ausfüllen → Speichern.
+          Die Taster-ID und den Code liest du im Tab **EnOcean-Monitor** ab.
+      - type: markdown
+        title: Vorhandene Automationen
+        content: |-
+          | Automation | Status | Zuletzt ausgelöst |
+          |---|---|---|
+          {% for a in states.automation | sort(attribute='name') -%}
+          | {{ a.name }} | {{ 'aktiv' if a.state == 'on' else 'aus' }} | {{ relative_time(a.attributes.last_triggered) if a.attributes.last_triggered else '–' }} |
+          {% else -%}
+          | – | keine Automationen | – |
+          {% endfor %}

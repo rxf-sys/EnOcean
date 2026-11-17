@@ -150,6 +150,55 @@ event_data:
   pressed: true
 ```
 
+### Window / door contact (1BS, EEP D5-00-01)
+
+```yaml
+binary_sensor:
+  - platform: enocean_new
+    name: "Fenster Bad"
+    id: [0x00, 0x01, 0xAA, 0x9E]
+    device_class: window      # on = open
+```
+
+Teach-in telegrams of the contact are ignored.
+
+### EnOcean monitor and telegram event
+
+With the UI config entry the integration creates `sensor.enocean_monitor`.
+Its state is the last sender ID; the attribute `telegrams` holds the last 30
+telegrams (time, ID, configured name or `?`, type, data, dBm), newest first.
+Use it to find the IDs of wall switches and sensors that are not configured
+yet. The list is not written to the recorder.
+
+Every received telegram also fires the event `enocean_new.telegram`:
+
+```yaml
+event_type: enocean_new.telegram
+event_data:
+  sender_id: "00:12:58:05"
+  rorg: "0xF6"
+  data: "0x30"
+  status: "0x30"
+  dbm: -64
+```
+
+### Ready-made Home Assistant files
+
+| File | Purpose |
+| ---- | ------- |
+| `ha-config/packages/enocean.yaml` | all devices of this installation as a package (`/config/packages/`) |
+| `ha-config/dashboards/enocean.yaml` | dashboard with *Steuerung*, *EnOcean-Monitor* and *Automationen* |
+| `blueprints/automation/enocean_new/` | automation blueprints (`/config/blueprints/automation/enocean_new/`) |
+
+Blueprints:
+
+| Blueprint | Type |
+| --------- | ---- |
+| `wall_switch_action.yaml` — *Wandtaster löst Aktion aus* | switch-controlled (any EnOcean rocker key → any actions) |
+| `cover_schedule.yaml` — *Jalousien nach Zeitplan* | time-controlled (up/down time, weekdays) |
+| `sensor_light.yaml` — *Sensor schaltet Licht* | sensor-controlled (on while active, off after N minutes) |
+| `window_cover_guard.yaml` — *Fenster offen → Jalousie hoch* | sensor-controlled (window opens → cover up) |
+
 ### Sensor (temperature / humidity)
 
 ```yaml
@@ -266,8 +315,8 @@ custom_components/enocean_new/
 ├── helpers.py         # Shared config validators
 ├── switch.py          # OPUS switch / light actuators
 ├── cover.py           # OPUS jalousie actuators
-├── binary_sensor.py   # Physical wall switches / push buttons
-├── sensor.py          # Temperature / humidity sensors (4BS)
+├── binary_sensor.py   # Wall switches (RPS), window/door contacts (1BS)
+├── sensor.py          # Temperature / humidity sensors (4BS), EnOcean monitor
 ├── config_flow.py     # UI configuration of the dongle path
 ├── services.yaml      # send_rps, teach_in, test_sender
 ├── strings.json       # UI strings

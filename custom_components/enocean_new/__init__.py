@@ -15,8 +15,8 @@ import serial
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_DEVICE
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.const import CONF_DEVICE, Platform
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
@@ -24,9 +24,10 @@ from .const import (
     CHANNEL_ON_OFF,
     DATA_DONGLE,
     DOMAIN,
+    EVENT_TELEGRAM,
     STATUS_PRESSED,
 )
-from .dongle import DongleError, EnOceanDongle, format_id
+from .dongle import DongleError, EnOceanDongle, format_id, telegram_event_data
 from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,6 +42,9 @@ CONFIG_SCHEMA = vol.Schema(
     },
     extra=vol.ALLOW_EXTRA,
 )
+
+# Platforms set up from the config entry (YAML platforms are set up by HA).
+ENTRY_PLATFORMS = [Platform.SENSOR]
 
 SERVICE_SEND_RPS = "send_rps"
 SERVICE_TEACH_IN = "teach_in"
@@ -114,11 +118,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(
             f"Failed to set up EnOcean dongle on {device_path}: {err}"
         ) from err
+    await hass.config_entries.async_forward_entry_setups(entry, ENTRY_PLATFORMS)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    if not await hass.config_entries.async_unload_platforms(entry, ENTRY_PLATFORMS):
+        return False
     dongle: EnOceanDongle | None = hass.data.get(DOMAIN, {}).pop(DATA_DONGLE, None)
     if dongle is not None:
         await hass.async_add_executor_job(dongle.disconnect)
@@ -137,6 +144,13 @@ async def _setup_dongle(hass: HomeAssistant, device_path: str) -> None:
     dongle = EnOceanDongle(hass, device_path)
     await hass.async_add_executor_job(dongle.connect)
     hass.data[DOMAIN][DATA_DONGLE] = dongle
+
+    @callback
+    def _fire_telegram_event(packet: dict) -> None:
+        """Publish every received telegram for automations and the monitor."""
+        hass.bus.async_fire(EVENT_TELEGRAM, telegram_event_data(packet))
+
+    dongle.add_listener(_fire_telegram_event)
     _LOGGER.info("EnOcean dongle ready on %s", device_path)
 
     _register_services(hass)

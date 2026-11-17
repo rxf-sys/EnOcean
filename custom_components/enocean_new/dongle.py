@@ -74,6 +74,17 @@ def format_id(id_bytes) -> str:
     return ":".join(f"{b:02X}" for b in id_bytes)
 
 
+def telegram_event_data(packet: dict) -> dict:
+    """Return a received radio packet as plain, JSON-friendly event data."""
+    return {
+        "sender_id": format_id(packet["sender_id"]),
+        "rorg": f"0x{packet['rorg']:02X}",
+        "data": " ".join(f"0x{b:02X}" for b in packet.get("data", [])),
+        "status": f"0x{packet.get('status', 0):02X}",
+        "dbm": packet.get("dbm"),
+    }
+
+
 def is_plausible_base_id(base_id) -> bool:
     """Return True if base_id is a valid ESP3 base ID (0xFF800000..0xFFFFFF80, 128-aligned)."""
     if base_id is None or len(base_id) != 4:
@@ -517,6 +528,10 @@ class EnOceanDongle:
         if packet_type == PACKET_RADIO_ERP1:
             packet_info = self._parse_radio(data, opt_data)
             if packet_info:
+                # Optional data of a received ERP1: subtel, destination (4),
+                # dBm (positive value of the negative RSSI), security level.
+                if len(opt_data) >= 6:
+                    packet_info["dbm"] = -opt_data[5]
                 _LOGGER.info(
                     "RX RADIO rorg=0x%02X sender=%s data=%s status=0x%02X",
                     packet_info["rorg"],

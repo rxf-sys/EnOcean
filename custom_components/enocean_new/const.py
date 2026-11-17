@@ -95,6 +95,15 @@ STATUS_RELEASED = 0x20  # T21=1, NU=0
 # Event sent on the HA bus when a button is pressed
 EVENT_BUTTON_PRESSED = "enocean_new.button_pressed"
 
+# Event sent on the HA bus for every received radio telegram
+EVENT_TELEGRAM = "enocean_new.telegram"
+
+# hass.data key: {"FF:C8:31:90": "Leuchte Gäste-WC (HA sender)", ...}
+DATA_KNOWN_IDS = "known_ids"
+
+# Number of telegrams kept by the EnOcean monitor sensor
+MONITOR_HISTORY = 30
+
 # Seconds within which an identical rocker press (e.g. its repeated copy) is
 # ignored when mirroring wall switches.
 WALL_SWITCH_DEDUP_WINDOW = 0.7

@@ -1,0 +1,40 @@
+# EnOcean devices of this installation. Sender IDs: see docs/devices.md.
+# Installed as /config/packages/enocean.yaml (configuration.yaml needs
+# "homeassistant: packages: !include_dir_named packages").
+
+switch:
+  - platform: enocean_new
+    name: "Leuchte Gäste-WC"
+    sender_id: [0xFF, 0xC8, 0x31, 0x90]   # SR-4 13.1
+    on_data: 0x70
+    off_data: 0x50
+    wall_switches:
+      - id: [0x00, 0x24, 0x55, 0x01]      # wall switch: bottom = on, top = off
+        on_data: 0x50
+        off_data: 0x70
+
+  - platform: enocean_new
+    name: "Aquarium"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA0]   # MF-2 1, contact 1
+    on_data: 0x70
+    off_data: 0x50
+
+  - platform: enocean_new
+    name: "Anlage"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA1]   # MF-2 1, contact 2
+    on_data: 0x70
+    off_data: 0x50
+
+cover:
+  - platform: enocean_new
+    name: "Jalousie Mila"
+    sender_id: [0xFF, 0xC8, 0x31, 0xC0]   # JRG-2 1, motor 1
+  - platform: enocean_new
+    name: "Jalousie Lina"
+    sender_id: [0xFF, 0xC8, 0x31, 0xC1]   # JRG-2 1, motor 2
+  - platform: enocean_new
+    name: "Jalousie Eltern"
+    sender_id: [0xFF, 0xC8, 0x31, 0xC2]   # JRG-2 2, motor 1
+  - platform: enocean_new
+    name: "Jalousie Bad"
+    sender_id: [0xFF, 0xC8, 0x31, 0xC3]   # JRG-2 2, motor 2
