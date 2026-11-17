@@ -1,0 +1,58 @@
+blueprint:
+  name: "EnOcean: Sensor schaltet Licht"
+  description: >-
+    Sensorgesteuert: Wird der Sensor aktiv (z. B. Tür-/Fensterkontakt geöffnet,
+    Bewegung), wird das Licht eingeschaltet. Ist der Sensor die eingestellte
+    Zeit wieder inaktiv, wird es ausgeschaltet.
+  domain: automation
+  source_url: https://github.com/rxf-sys/EnOcean/blob/claude/hacs-enocean-integration-yNDos/blueprints/automation/enocean_new/sensor_light.yaml
+  input:
+    sensor:
+      name: Sensor
+      selector:
+        entity:
+          domain: binary_sensor
+    light:
+      name: Licht / Schalter
+      selector:
+        entity:
+          domain: [switch, light]
+    off_delay:
+      name: Ausschalten nach (Minuten ohne Aktivität)
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: min
+
+mode: restart
+
+triggers:
+  - trigger: state
+    entity_id: !input sensor
+    to: "on"
+    id: active
+  - trigger: state
+    entity_id: !input sensor
+    to: "off"
+    for:
+      minutes: !input off_delay
+    id: idle
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: active
+        sequence:
+          - action: homeassistant.turn_on
+            target:
+              entity_id: !input light
+      - conditions:
+          - condition: trigger
+            id: idle
+        sequence:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: !input light

@@ -1,0 +1,31 @@
+blueprint:
+  name: "EnOcean: Fenster offen → Jalousie hoch"
+  description: >-
+    Sensorgesteuert: Wird das Fenster bzw. die Tür geöffnet, fährt die Jalousie
+    hoch, damit niemand ausgesperrt wird und die Jalousie nicht gegen das
+    offene Fenster fährt.
+  domain: automation
+  source_url: https://github.com/rxf-sys/EnOcean/blob/claude/hacs-enocean-integration-yNDos/blueprints/automation/enocean_new/window_cover_guard.yaml
+  input:
+    window:
+      name: Fenster-/Türkontakt
+      selector:
+        entity:
+          domain: binary_sensor
+    cover:
+      name: Jalousie
+      selector:
+        entity:
+          domain: cover
+
+mode: single
+
+triggers:
+  - trigger: state
+    entity_id: !input window
+    to: "on"
+
+actions:
+  - action: cover.open_cover
+    target:
+      entity_id: !input cover

@@ -29,7 +29,7 @@ from .const import (
     DATA_DONGLE,
     DOMAIN,
 )
-from .device import EnOceanDevice
+from .device import EnOceanDevice, register_known_id
 from .dongle import DongleError, format_id
 from .helpers import DATA_BYTE, ENOCEAN_ID
 
@@ -128,6 +128,7 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         )
 
     async def async_added_to_hass(self) -> None:
+        register_known_id(self.hass, self._sender_id, f"HA → {self._attr_name}")
         if self._receiver_id is not None:
             self.dongle.add_listener(self._packet_received)
 

@@ -7,10 +7,16 @@ from typing import List
 
 from homeassistant.core import HomeAssistant
 
-from .const import DATA_DONGLE, DOMAIN
+from .const import DATA_DONGLE, DATA_KNOWN_IDS, DOMAIN
 from .dongle import EnOceanDongle, format_id
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def register_known_id(hass: HomeAssistant, dev_id, label: str) -> None:
+    """Remember a label for an EnOcean ID so the monitor can show it."""
+    known = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_KNOWN_IDS, {})
+    known[format_id(dev_id)] = label
 
 
 class EnOceanDevice:

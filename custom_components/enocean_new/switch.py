@@ -39,7 +39,7 @@ from .const import (
     RORG_RPS,
     WALL_SWITCH_DEDUP_WINDOW,
 )
-from .device import EnOceanDevice
+from .device import EnOceanDevice, register_known_id
 from .dongle import DongleError, format_id
 from .helpers import DATA_BYTE, ENOCEAN_ID
 
@@ -173,6 +173,11 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register packet listener once entity is fully added."""
+        register_known_id(self.hass, self._sender_id, f"HA → {self._attr_name}")
+        for wall_switch in self._wall_switches:
+            register_known_id(
+                self.hass, wall_switch["id"], f"Wandschalter → {self._attr_name}"
+            )
         if self._listens:
             self.dongle.add_listener(self._packet_received)
 

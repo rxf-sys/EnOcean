@@ -1,0 +1,76 @@
+blueprint:
+  name: "EnOcean: Jalousien nach Zeitplan"
+  description: >-
+    Zeitgesteuert: Fährt die gewählten Jalousien zu festen Uhrzeiten hoch und
+    runter, nur an den gewählten Wochentagen.
+  domain: automation
+  source_url: https://github.com/rxf-sys/EnOcean/blob/claude/hacs-enocean-integration-yNDos/blueprints/automation/enocean_new/cover_schedule.yaml
+  input:
+    covers:
+      name: Jalousien
+      selector:
+        entity:
+          domain: cover
+          multiple: true
+    time_up:
+      name: Hochfahren um
+      default: "07:00:00"
+      selector:
+        time:
+    time_down:
+      name: Runterfahren um
+      default: "21:00:00"
+      selector:
+        time:
+    weekdays:
+      name: Wochentage
+      default: [mon, tue, wed, thu, fri, sat, sun]
+      selector:
+        select:
+          multiple: true
+          options:
+            - label: Montag
+              value: mon
+            - label: Dienstag
+              value: tue
+            - label: Mittwoch
+              value: wed
+            - label: Donnerstag
+              value: thu
+            - label: Freitag
+              value: fri
+            - label: Samstag
+              value: sat
+            - label: Sonntag
+              value: sun
+
+mode: single
+
+triggers:
+  - trigger: time
+    at: !input time_up
+    id: up
+  - trigger: time
+    at: !input time_down
+    id: down
+
+conditions:
+  - condition: time
+    weekday: !input weekdays
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: up
+        sequence:
+          - action: cover.open_cover
+            target:
+              entity_id: !input covers
+      - conditions:
+          - condition: trigger
+            id: down
+        sequence:
+          - action: cover.close_cover
+            target:
+              entity_id: !input covers

@@ -1,4 +1,4 @@
-"""Binary sensor platform: physical EnOcean wall switches / push buttons."""
+"""Binary sensor platform: wall switches (RPS) and window/door contacts (1BS)."""
 
 from __future__ import annotations
 
@@ -22,9 +22,10 @@ from .const import (
     DATA_DONGLE,
     DOMAIN,
     EVENT_BUTTON_PRESSED,
+    RORG_1BS,
     RORG_RPS,
 )
-from .device import EnOceanDevice
+from .device import EnOceanDevice, register_known_id
 from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ async def async_setup_platform(
 
 
 class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
-    """Receive RPS telegrams from a physical wall switch / button."""
+    """Wall switch / push button (RPS) or window/door contact (1BS, D5-00-01)."""
 
     _attr_should_poll = False
 
@@ -81,6 +82,7 @@ class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
         self._attr_is_on = False
 
     async def async_added_to_hass(self) -> None:
+        register_known_id(self.hass, self.dev_id, self._attr_name)
         self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
@@ -88,6 +90,9 @@ class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
 
     def _packet_received(self, packet: dict) -> None:
         if packet.get("sender_id") != self.dev_id:
+            return
+        if packet.get("rorg") == RORG_1BS:
+            self._contact_received(packet)
             return
         if packet.get("rorg") != RORG_RPS:
             return
@@ -124,3 +129,20 @@ class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
                 "pressed": pressed,
             },
         )
+
+    def _contact_received(self, packet: dict) -> None:
+        """Window/door contact (EEP D5-00-01): on = open."""
+        data = packet.get("data") or []
+        if not data:
+            return
+        value = data[0]
+        # DB0.3 = 0 marks a teach-in telegram, which carries no contact state.
+        if not value & 0x08:
+            return
+        is_open = not value & 0x01
+        _LOGGER.debug(
+            "Contact %s rx: data=0x%02X open=%s", self._attr_name, value, is_open
+        )
+        if self._attr_is_on != is_open:
+            self._attr_is_on = is_open
+            self.schedule_update_ha_state()

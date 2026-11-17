@@ -1,0 +1,50 @@
+blueprint:
+  name: "EnOcean: Wandtaster löst Aktion aus"
+  description: >-
+    Schaltergesteuert: Wenn ein EnOcean-Wandtaster eine bestimmte Taste sendet,
+    werden die gewählten Aktionen ausgeführt. ID und Code stehen im
+    Dashboard-Tab „EnOcean-Monitor“ (z. B. ID 00:12:58:05, Code 0x30 = links oben).
+  domain: automation
+  source_url: https://github.com/rxf-sys/EnOcean/blob/claude/hacs-enocean-integration-yNDos/blueprints/automation/enocean_new/wall_switch_action.yaml
+  input:
+    sender_id:
+      name: Taster-ID
+      description: "Format AA:BB:CC:DD, z. B. 00:12:58:05"
+      selector:
+        text:
+    data:
+      name: Taste (Code)
+      description: "0x30 links oben, 0x10 links unten, 0x70 rechts oben, 0x50 rechts unten"
+      default: "0x70"
+      selector:
+        select:
+          options:
+            - label: "Links oben (0x30)"
+              value: "0x30"
+            - label: "Links unten (0x10)"
+              value: "0x10"
+            - label: "Rechts oben (0x70)"
+              value: "0x70"
+            - label: "Rechts unten (0x50)"
+              value: "0x50"
+    actions:
+      name: Aktionen
+      selector:
+        action:
+
+# A press can arrive twice (directly and via a repeater); the short delay
+# together with mode "single" makes it count once.
+mode: single
+max_exceeded: silent
+
+triggers:
+  - trigger: event
+    event_type: enocean_new.telegram
+    event_data:
+      sender_id: !input sender_id
+      data: !input data
+
+actions:
+  - sequence: !input actions
+  - delay:
+      seconds: 1
