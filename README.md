@@ -93,6 +93,7 @@ switch:
 | `on_data`     | `0x50` (ch 0) / `0x10` (ch 1) | data byte sent for ON                   |
 | `off_data`    | `0x70` (ch 0) / `0x30` (ch 1) | data byte sent for OFF                  |
 | `receiver_id` | –                           | actuator ID for status feedback, only for actuators that send one |
+| `actuator`    | –                           | free text, e.g. `SR-4 13.1`; shown in the device list |
 | `wall_switches` | –                         | wall switches taught to the same actuator; their presses update the state in HA |
 
 #### Following a wall switch
@@ -182,12 +183,30 @@ event_data:
   dbm: -64
 ```
 
+### Device list (`sensor.enocean_devices`)
+
+Also created by the config entry. It documents the installation
+automatically from the configuration and the received telegrams:
+
+* `devices`: one row per EnOcean ID of every configured entity — name, kind,
+  ID, role (`HA sendet` / `empfängt`), actuator/channel, data bytes, last
+  received and dBm.
+* `unknown`: IDs that were received but are not configured yet (last seen,
+  count, last data, dBm) — e.g. window contacts or further wall switches.
+* `base_id`, `chip_id`, `sender_range` of the dongle.
+
+The optional `actuator` option of every platform fills the actuator column:
+
+```yaml
+    actuator: "SR-4 13.1"
+```
+
 ### Ready-made Home Assistant files
 
 | File | Purpose |
 | ---- | ------- |
 | `ha-config/packages/enocean.yaml` | all devices of this installation as a package (`/config/packages/`) |
-| `ha-config/dashboards/enocean.yaml` | dashboard with *Steuerung*, *EnOcean-Monitor* and *Automationen* |
+| `ha-config/dashboards/enocean.yaml` | dashboard with *Steuerung*, *Geräte*, *EnOcean-Monitor* and *Automationen* |
 | `blueprints/automation/enocean_new/` | automation blueprints (`/config/blueprints/automation/enocean_new/`) |
 
 Blueprints:
@@ -316,7 +335,7 @@ custom_components/enocean_new/
 ├── switch.py          # OPUS switch / light actuators
 ├── cover.py           # OPUS jalousie actuators
 ├── binary_sensor.py   # Wall switches (RPS), window/door contacts (1BS)
-├── sensor.py          # Temperature / humidity sensors (4BS), EnOcean monitor
+├── sensor.py          # Temperature / humidity sensors (4BS), monitor, device list
 ├── config_flow.py     # UI configuration of the dongle path
 ├── services.yaml      # send_rps, teach_in, test_sender
 ├── strings.json       # UI strings

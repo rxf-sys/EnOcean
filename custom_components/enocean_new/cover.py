@@ -20,6 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import (
+    CONF_ACTUATOR,
     CONF_DOWN_DATA,
     CONF_RECEIVER_ID,
     CONF_SENDER_ID,
@@ -29,7 +30,12 @@ from .const import (
     DATA_DONGLE,
     DOMAIN,
 )
-from .device import EnOceanDevice, register_known_id
+from .device import (
+    EnOceanDevice,
+    device_row,
+    register_device,
+    unregister_device,
+)
 from .dongle import DongleError, format_id
 from .helpers import DATA_BYTE, ENOCEAN_ID
 
@@ -42,6 +48,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_SENDER_ID): ENOCEAN_ID,
         vol.Optional(CONF_RECEIVER_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_ACTUATOR): cv.string,
         vol.Optional(CONF_UP_DATA, default=COVER_UP): DATA_BYTE,
         vol.Optional(CONF_DOWN_DATA, default=COVER_DOWN): DATA_BYTE,
     }
@@ -84,6 +91,7 @@ async def async_setup_platform(
                 name,
                 config[CONF_UP_DATA],
                 config[CONF_DOWN_DATA],
+                config.get(CONF_ACTUATOR),
             )
         ]
     )
@@ -107,10 +115,12 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         name: str,
         up_value: int,
         down_value: int,
+        actuator: Optional[str] = None,
     ) -> None:
         EnOceanDevice.__init__(self, hass, sender_id, name)
         self._up_value = up_value
         self._down_value = down_value
+        self._actuator = actuator
         self._sender_id: List[int] = [int(b) & 0xFF for b in sender_id]
         self._receiver_id: Optional[List[int]] = (
             [int(b) & 0xFF for b in receiver_id] if receiver_id else None
@@ -128,11 +138,26 @@ class EnOceanCover(EnOceanDevice, CoverEntity):
         )
 
     async def async_added_to_hass(self) -> None:
-        register_known_id(self.hass, self._sender_id, f"HA → {self._attr_name}")
+        register_device(
+            self.hass,
+            self.entity_id,
+            self._attr_name,
+            self._actuator,
+            [
+                device_row(
+                    self._sender_id,
+                    "Jalousie",
+                    "HA sendet",
+                    f"HA → {self._attr_name}",
+                    f"hoch 0x{self._up_value:02X} / runter 0x{self._down_value:02X}",
+                )
+            ],
+        )
         if self._receiver_id is not None:
             self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
+        unregister_device(self.hass, self.entity_id)
         if self._receiver_id is not None:
             self.dongle.remove_listener(self._packet_received)
 

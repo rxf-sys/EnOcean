@@ -19,13 +19,19 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import (
+    CONF_ACTUATOR,
     DATA_DONGLE,
     DOMAIN,
     EVENT_BUTTON_PRESSED,
     RORG_1BS,
     RORG_RPS,
 )
-from .device import EnOceanDevice, register_known_id
+from .device import (
+    EnOceanDevice,
+    device_row,
+    register_device,
+    unregister_device,
+)
 from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +42,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_ACTUATOR): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): cv.string,
     }
 )
@@ -57,7 +64,13 @@ async def async_setup_platform(
     name: str = config[CONF_NAME]
     device_class: Optional[str] = config.get(CONF_DEVICE_CLASS)
 
-    async_add_entities([EnOceanBinarySensor(hass, dev_id, name, device_class)])
+    async_add_entities(
+        [
+            EnOceanBinarySensor(
+                hass, dev_id, name, device_class, config.get(CONF_ACTUATOR)
+            )
+        ]
+    )
 
 
 class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
@@ -71,6 +84,7 @@ class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
         dev_id: List[int],
         name: str,
         device_class: Optional[str],
+        actuator: Optional[str] = None,
     ) -> None:
         EnOceanDevice.__init__(self, hass, dev_id, name)
         self._attr_name = name
@@ -80,12 +94,25 @@ class EnOceanBinarySensor(EnOceanDevice, BinarySensorEntity):
             f"{b:02x}" for b in self.dev_id
         )
         self._attr_is_on = False
+        self._actuator = actuator
+        self._kind = (
+            "Kontakt"
+            if device_class in ("window", "door", "opening", "garage_door")
+            else "Taster"
+        )
 
     async def async_added_to_hass(self) -> None:
-        register_known_id(self.hass, self.dev_id, self._attr_name)
+        register_device(
+            self.hass,
+            self.entity_id,
+            self._attr_name,
+            self._actuator,
+            [device_row(self.dev_id, self._kind, "empfängt", self._attr_name)],
+        )
         self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
+        unregister_device(self.hass, self.entity_id)
         self.dongle.remove_listener(self._packet_received)
 
     def _packet_received(self, packet: dict) -> None:

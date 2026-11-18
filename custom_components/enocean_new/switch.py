@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import (
+    CONF_ACTUATOR,
     CHANNEL_ON_OFF,
     CONF_CHANNEL,
     CONF_OFF_DATA,
@@ -39,7 +40,12 @@ from .const import (
     RORG_RPS,
     WALL_SWITCH_DEDUP_WINDOW,
 )
-from .device import EnOceanDevice, register_known_id
+from .device import (
+    EnOceanDevice,
+    device_row,
+    register_device,
+    unregister_device,
+)
 from .dongle import DongleError, format_id
 from .helpers import DATA_BYTE, ENOCEAN_ID
 
@@ -63,6 +69,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_SENDER_ID): ENOCEAN_ID,
         vol.Optional(CONF_RECEIVER_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_ACTUATOR): cv.string,
         vol.Optional(CONF_CHANNEL, default=0): vol.In([0, 1]),
         vol.Optional(CONF_ON_DATA): DATA_BYTE,
         vol.Optional(CONF_OFF_DATA): DATA_BYTE,
@@ -115,6 +122,7 @@ async def async_setup_platform(
                 on_value,
                 off_value,
                 config[CONF_WALL_SWITCHES],
+                config.get(CONF_ACTUATOR),
             )
         ]
     )
@@ -135,6 +143,7 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
         on_value: int,
         off_value: int,
         wall_switches: Optional[List[dict]] = None,
+        actuator: Optional[str] = None,
     ) -> None:
         EnOceanDevice.__init__(self, hass, sender_id, name)
         self._sender_id: List[int] = [int(b) & 0xFF for b in sender_id]
@@ -160,6 +169,7 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
             for ws in (wall_switches or [])
         ]
         self._last_wall_press: Optional[tuple] = None
+        self._actuator = actuator
 
         self._attr_unique_id = (
             "enocean_new_switch_"
@@ -173,15 +183,38 @@ class EnOceanSwitch(EnOceanDevice, SwitchEntity):
 
     async def async_added_to_hass(self) -> None:
         """Register packet listener once entity is fully added."""
-        register_known_id(self.hass, self._sender_id, f"HA → {self._attr_name}")
-        for wall_switch in self._wall_switches:
-            register_known_id(
-                self.hass, wall_switch["id"], f"Wandschalter → {self._attr_name}"
+        name = self._attr_name
+        rows = [
+            device_row(
+                self._sender_id,
+                "Schalter",
+                "HA sendet",
+                f"HA → {name}",
+                f"an 0x{self._on_value:02X} / aus 0x{self._off_value:02X}",
             )
+        ]
+        rows += [
+            device_row(
+                ws["id"],
+                "Wandschalter",
+                "empfängt",
+                f"Wandschalter → {name}",
+                f"an 0x{ws['on']:02X} / aus 0x{ws['off']:02X}",
+            )
+            for ws in self._wall_switches
+        ]
+        if self._receiver_id is not None:
+            rows.append(
+                device_row(
+                    self._receiver_id, "Rückmeldung", "empfängt", f"Aktor → {name}"
+                )
+            )
+        register_device(self.hass, self.entity_id, name, self._actuator, rows)
         if self._listens:
             self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
+        unregister_device(self.hass, self.entity_id)
         if self._listens:
             self.dongle.remove_listener(self._packet_received)
 

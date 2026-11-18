@@ -14,6 +14,7 @@ CONF_OFF_DATA = "off_data"
 CONF_UP_DATA = "up_data"
 CONF_DOWN_DATA = "down_data"
 CONF_WALL_SWITCHES = "wall_switches"
+CONF_ACTUATOR = "actuator"
 
 # Default values
 DEFAULT_NAME = "EnOcean device"
@@ -100,6 +101,16 @@ EVENT_TELEGRAM = "enocean_new.telegram"
 
 # hass.data key: {"FF:C8:31:90": "Leuchte Gäste-WC (HA sender)", ...}
 DATA_KNOWN_IDS = "known_ids"
+
+# hass.data key: configured devices, {entity_id: [row, ...]} (see device.py)
+DATA_DEVICES = "devices"
+
+# hass.data key: received sender IDs, {"00:12:58:05": {"time": ..., ...}}
+DATA_SEEN = "seen"
+SEEN_MAX_IDS = 100
+
+# Dispatcher signal sent when the list of configured devices changes
+SIGNAL_DEVICES_UPDATED = "enocean_new_devices_updated"
 
 # Number of telegrams kept by the EnOcean monitor sensor
 MONITOR_HISTORY = 30

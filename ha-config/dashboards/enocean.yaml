@@ -47,6 +47,40 @@ views:
             features:
               - type: cover-open-close
 
+  - title: Geräte
+    path: geraete
+    icon: mdi:format-list-bulleted
+    cards:
+      - type: markdown
+        title: EnOcean-Geräte (automatisch aus der Konfiguration)
+        content: |-
+          {% set a = states.sensor.enocean_devices.attributes if states.sensor.enocean_devices else {} -%}
+          **{{ states('sensor.enocean_devices') }} Geräte** · Stick Base-ID `{{ a.base_id }}` · Chip-ID `{{ a.chip_id }}`
+
+          Gültige Sender-IDs: {{ a.sender_range }}
+
+          | Gerät | Art | ID | Rolle | Aktor / Kanal | Codes | zuletzt empfangen | dBm |
+          |---|---|---|---|---|---|---|---|
+          {% for d in a.devices or [] -%}
+          | {{ d.name }} | {{ d.kind }} | `{{ d.id }}` | {{ d.role }} | {{ d.actuator or '–' }} | {{ d.codes or '–' }} | {{ d.last_seen }} | {{ d.dbm if d.dbm is not none else '–' }} |
+          {% endfor %}
+      - type: markdown
+        title: Empfangene, noch nicht eingetragene IDs
+        content: |-
+          {% set u = state_attr('sensor.enocean_devices', 'unknown') or [] -%}
+          {% if u -%}
+          Diese Geräte funken, sind aber noch keinem Eintrag zugeordnet (z. B. Fensterkontakte, weitere Taster).
+          Zum Zuordnen das Gerät betätigen und schauen, welche Zeile sich aktualisiert.
+
+          | ID | Typ | zuletzt | Anzahl | letzter Code | dBm |
+          |---|---|---|---|---|---|
+          {% for d in u -%}
+          | `{{ d.id }}` | {{ {'0xF6': 'Taster', '0xD5': 'Kontakt', '0xA5': 'Sensor', '0xD2': 'VLD'}.get(d.rorg, d.rorg) }} | {{ d.time }} | {{ d.count }} | {{ d.data }} | {{ d.dbm }} |
+          {% endfor %}
+          {%- else -%}
+          Keine unbekannten Geräte empfangen.
+          {%- endif %}
+
   - title: EnOcean-Monitor
     path: monitor
     icon: mdi:radio-tower
