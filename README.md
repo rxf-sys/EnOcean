@@ -220,6 +220,10 @@ actuator number and channel, warns if the ID is already used, shows the
 rotary-switch positions for exactly that channel and has buttons that send
 `0x70` / `0x50` with that ID.
 
+| `ha-config/packages/alexa_smart_home.yaml` | Alexa via own Smart Home skill: all devices with name and display category, covers as blinds |
+| `ha-config/packages/remote_access.yaml` | `http:` settings for the Tailscale Funnel reverse proxy, IP ban |
+| `alexa-skill/` | Lambda forwarder (`lambda_function.py`) and German setup guide (`ANLEITUNG.md`) |
+
 Blueprints:
 
 | Blueprint | Type |
