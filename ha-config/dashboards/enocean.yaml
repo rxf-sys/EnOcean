@@ -7,20 +7,170 @@ views:
     icon: mdi:home-lightning-bolt
     cards:
       - type: grid
-        title: Licht & Geräte
+        title: Wohnen & Essen
         columns: 3
         square: false
         cards:
+          - type: tile
+            entity: switch.wohnzimmerlicht
+            name: Wohnzimmer
+            icon: mdi:sofa
+          - type: tile
+            entity: switch.esszimmerlicht
+            name: Esszimmer
+            icon: mdi:silverware-fork-knife
+          - type: tile
+            entity: switch.tv
+            name: TV
+            icon: mdi:television
+          - type: tile
+            entity: switch.anlage
+            name: Anlage
+            icon: mdi:speaker
+          - type: tile
+            entity: switch.aquarium
+            name: Aquarium
+            icon: mdi:fishbowl
+      - type: grid
+        title: Küche
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.kuche_vorne
+            name: Küche vorne
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.kuche_hinten
+            name: Küche hinten
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.vorratsraum
+            name: Vorratsraum
+            icon: mdi:lightbulb
+      - type: grid
+        title: Flur, Garderobe & Nebenräume
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.licht_flur_eg
+            name: Flur EG
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.licht_flur_og
+            name: Flur OG
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.garderobe
+            name: Garderobe
+            icon: mdi:hanger
           - type: tile
             entity: switch.leuchte_gaste_wc
             name: Gäste-WC
             icon: mdi:lightbulb
           - type: tile
-            entity: switch.aquarium
-            icon: mdi:fishbowl
+            entity: switch.hwr
+            name: HWR
+            icon: mdi:washing-machine
           - type: tile
-            entity: switch.anlage
-            icon: mdi:speaker
+            entity: switch.arbeitszimmer_licht
+            name: Arbeitszimmer
+            icon: mdi:desk
+      - type: grid
+        title: Eltern
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.eltern
+            name: Eltern
+            icon: mdi:bed-king
+          - type: tile
+            entity: switch.ankleide
+            name: Ankleide
+            icon: mdi:wardrobe
+      - type: grid
+        title: Mila
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.mila_licht
+            name: Mila Licht
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.mila
+            name: Mila
+            icon: mdi:power-socket-de
+      - type: grid
+        title: Lina
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.lina_licht
+            name: Lina Licht
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.lina
+            name: Lina
+            icon: mdi:power-socket-de
+      - type: grid
+        title: Bad
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.bad_decke_licht
+            name: Decke
+            icon: mdi:ceiling-light
+          - type: tile
+            entity: switch.bad_ablage
+            name: Ablage
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.waschbecken_links
+            name: Waschbecken links
+            icon: mdi:mirror
+          - type: tile
+            entity: switch.waschbecken_rechts
+            name: Waschbecken rechts
+            icon: mdi:mirror
+      - type: grid
+        title: Dach
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.dach_licht
+            name: Dach
+            icon: mdi:lightbulb
+          - type: tile
+            entity: switch.spitzboden
+            name: Spitzboden
+            icon: mdi:home-roof
+      - type: grid
+        title: Außen
+        columns: 3
+        square: false
+        cards:
+          - type: tile
+            entity: switch.terrasse_licht
+            name: Terrasse Licht
+            icon: mdi:outdoor-lamp
+          - type: tile
+            entity: switch.terrasse
+            name: Terrasse
+            icon: mdi:power-socket-de
+          - type: tile
+            entity: switch.tur_aussenlicht
+            name: Haustür
+            icon: mdi:coach-lamp
+          - type: tile
+            entity: switch.garten_licht
+            name: Garten
+            icon: mdi:pine-tree
       - type: grid
         title: Jalousien
         columns: 2
