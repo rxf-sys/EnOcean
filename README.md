@@ -235,6 +235,10 @@ sensor:
 
 ## Teach-in procedure
 
+A German step-by-step guide for the three OPUS relay types (SR-4, MF-2, JRG-2),
+including what every rotary switch does, is in
+[`docs/relais-anlernen.md`](docs/relais-anlernen.md).
+
 In LRN mode an actuator stores the very next telegram it receives (a window
 contact sending at that moment would be learned too). Prepare the service call
 before switching to LRN and send it right away. Teaching adds a sender; it
