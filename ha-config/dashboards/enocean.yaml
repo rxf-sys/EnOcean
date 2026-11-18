@@ -197,6 +197,127 @@ views:
             features:
               - type: cover-open-close
 
+  - title: Anlernen
+    path: anlernen
+    icon: mdi:school
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: entities
+            title: Was wird angelernt?
+            entities:
+              - entity: input_select.enocean_teach_type
+              - entity: input_number.enocean_teach_actuator
+              - entity: input_number.enocean_teach_channel
+          - type: markdown
+            content: |-
+              {% set sid = states('sensor.enocean_anlernen') -%}
+              {% set used = (state_attr('sensor.enocean_devices', 'devices') or []) | selectattr('id', 'eq', sid) | map(attribute='name') | unique | list -%}
+              ## Sender-ID: `{{ sid }}`
+              {% if sid == 'ungültig' -%}
+              ⚠️ **Ungültige Auswahl.** SR-4: Aktor 13–15, Kanal 1–4 · MF-2: Kontakt 1–2 · JRG-2: Motor 1–2
+              {%- elif used -%}
+              ℹ️ Diese ID gehört bereits zu **{{ used | join(', ') }}**. Zum Neu-Lernen oder Testen in Ordnung – für ein neues Gerät eine andere Nummer wählen.
+              {%- else -%}
+              ✅ Diese ID ist noch frei.
+              {%- endif %}
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: button
+                name: "Lernen / EIN / HOCH (0x70)"
+                icon: mdi:arrow-up-bold-circle
+                tap_action:
+                  action: perform-action
+                  perform_action: script.enocean_teach_send
+                  data:
+                    data_byte: 112
+              - type: button
+                name: "AUS / RUNTER (0x50)"
+                icon: mdi:arrow-down-bold-circle
+                tap_action:
+                  action: perform-action
+                  perform_action: script.enocean_teach_send
+                  data:
+                    data_byte: 80
+      - type: markdown
+        title: Schritt für Schritt
+        content: |-
+          {% set t = states('input_select.enocean_teach_type') -%}
+          {% set n = states('input_number.enocean_teach_actuator') | int(0) -%}
+          {% set c = states('input_number.enocean_teach_channel') | int(0) -%}
+          {% set sid = states('sensor.enocean_anlernen') -%}
+          **Immer:** Stellung aller Drehschalter vorher **fotografieren**. Nur **ein** Relais auf LRN. Nach LRN **sofort** den Knopf drücken.
+
+          {% if t.startswith('SR-4') -%}
+          ### SR-4 {{ n }}.{{ c }} – zwei Schritte
+          1. Unten **{{ c }}**, oben **0**, Mitte **LRN** (LED blinkt) → **„Lernen / EIN“** → LED aus
+          2. Oben **2**, Mitte kurz **AUTO** und wieder **LRN** → **„AUS“** → LED aus
+          3. Unten **AUTO**, Mitte **AUTO**, oben auf **RT** (nicht UT!)
+          4. Test: „Lernen / EIN“ = an · „AUS“ = aus
+          {%- elif t.startswith('MF-2') -%}
+          ### MF-2 {{ n }}, Kontakt {{ c }} – ein Schritt
+          1. Oben **{{ 9 if c == 1 else 10 }}**, Mitte **LRN** (LED blinkt) → **„Lernen / EIN“** → LED aus
+             *(Beide Kontakte gemeinsam schalten: oben **5** mit Kontakt 1)*
+          2. Mitte **AUTO**, oben zurück auf die notierte Stellung
+          3. Test: „Lernen / EIN“ = an · „AUS“ = aus
+          4. ⚠️ Unteren Schalter nicht verstellen (steht auf 2S (2xS))
+          {%- else -%}
+          ### JRG-2 {{ n }}, Motor {{ c }} – ein Schritt
+          1. **RV (oben) und WA (Mitte) aufschreiben!**
+          2. Oben (RV) **{{ 10 if c == 1 else 30 }}**, Mitte (WA) **LRN** → **„Lernen / EIN“** → LED aus
+          3. RV und WA **exakt** auf die notierten Werte zurück
+          4. Test: „EIN“ = hoch · nochmal „EIN“ während der Fahrt = stopp · „AUS“ = runter
+          {%- endif %}
+
+          **Falsch gelernt?** Mitte auf **CLR** (oben **nicht** drehen!) → **„Lernen / EIN“** → Mitte zurück. Löscht nur diesen Sender.
+
+          {% if sid.startswith('FF:C8:31:') -%}
+          **Danach ins Paket `packages/enocean.yaml` eintragen:**
+          ```yaml
+          {% if t.startswith('JRG-2') -%}
+          cover:
+            - platform: enocean_new
+              name: "Jalousie …"
+              sender_id: [0xFF, 0xC8, 0x31, 0x{{ sid[9:11] }}]
+              actuator: "JRG-2 {{ n }}, Motor {{ c }}"
+          {%- else -%}
+          switch:
+            - platform: enocean_new
+              name: "…"
+              sender_id: [0xFF, 0xC8, 0x31, 0x{{ sid[9:11] }}]
+              actuator: "{{ 'SR-4 %d.%d' | format(n, c) if t.startswith('SR-4') else 'MF-2 %d, Kontakt %d' | format(n, c) }}"
+              on_data: 0x70
+              off_data: 0x50
+          {%- endif %}
+          ```
+          {%- endif %}
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: input_select.enocean_teach_type
+            state: "SR-4 (4-Kanal, Licht)"
+        card:
+          type: picture
+          image: /local/enocean/sr4.svg?v=1
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: input_select.enocean_teach_type
+            state: "MF-2 (2 Kontakte)"
+        card:
+          type: picture
+          image: /local/enocean/mf2.svg?v=1
+      - type: conditional
+        conditions:
+          - condition: state
+            entity: input_select.enocean_teach_type
+            state: "JRG-2 (Jalousie)"
+        card:
+          type: picture
+          image: /local/enocean/jrg2.svg?v=1
+
   - title: Geräte
     path: geraete
     icon: mdi:format-list-bulleted
