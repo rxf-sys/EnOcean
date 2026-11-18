@@ -24,19 +24,29 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import PlatformNotReady
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_ACTUATOR,
+    DATA_DEVICES,
     DATA_DONGLE,
     DATA_KNOWN_IDS,
+    DATA_SEEN,
     DOMAIN,
     MONITOR_HISTORY,
     RORG_4BS,
+    SIGNAL_DEVICES_UPDATED,
 )
-from .device import EnOceanDevice, register_known_id
-from .dongle import telegram_event_data
+from .device import (
+    EnOceanDevice,
+    device_row,
+    register_device,
+    unregister_device,
+)
+from .dongle import format_id, telegram_event_data
 from .helpers import ENOCEAN_ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +60,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_ID): ENOCEAN_ID,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_ACTUATOR): cv.string,
         vol.Optional(CONF_DEVICE_CLASS, default=DEVICE_CLASS_TEMPERATURE): vol.In(
             [DEVICE_CLASS_TEMPERATURE, DEVICE_CLASS_HUMIDITY]
         ),
@@ -73,7 +84,9 @@ async def async_setup_platform(
     name: str = config[CONF_NAME]
     device_class: str = config[CONF_DEVICE_CLASS]
 
-    async_add_entities([EnOceanSensor(hass, dev_id, name, device_class)])
+    async_add_entities(
+        [EnOceanSensor(hass, dev_id, name, device_class, config.get(CONF_ACTUATOR))]
+    )
 
 
 class EnOceanSensor(EnOceanDevice, SensorEntity):
@@ -88,6 +101,7 @@ class EnOceanSensor(EnOceanDevice, SensorEntity):
         dev_id: List[int],
         name: str,
         device_class: str,
+        actuator: Optional[str] = None,
     ) -> None:
         EnOceanDevice.__init__(self, hass, dev_id, name)
         self._attr_name = name
@@ -105,12 +119,21 @@ class EnOceanSensor(EnOceanDevice, SensorEntity):
             self._attr_device_class = SensorDeviceClass.HUMIDITY
             self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_native_value = None
+        self._actuator = actuator
 
     async def async_added_to_hass(self) -> None:
-        register_known_id(self.hass, self.dev_id, self._attr_name)
+        kind = "Temperatur" if self._kind == DEVICE_CLASS_TEMPERATURE else "Feuchte"
+        register_device(
+            self.hass,
+            self.entity_id,
+            self._attr_name,
+            self._actuator,
+            [device_row(self.dev_id, kind, "empfängt", self._attr_name)],
+        )
         self.dongle.add_listener(self._packet_received)
 
     async def async_will_remove_from_hass(self) -> None:
+        unregister_device(self.hass, self.entity_id)
         self.dongle.remove_listener(self._packet_received)
 
     def _packet_received(self, packet: dict) -> None:
@@ -149,8 +172,8 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Create the EnOcean monitor for the dongle of this config entry."""
-    async_add_entities([EnOceanMonitorSensor(hass)])
+    """Create the monitor and the device list for this config entry."""
+    async_add_entities([EnOceanMonitorSensor(hass), EnOceanDevicesSensor(hass)])
 
 
 class EnOceanMonitorSensor(SensorEntity):
@@ -191,3 +214,77 @@ class EnOceanMonitorSensor(SensorEntity):
         self._attr_native_value = entry["sender_id"]
         self._attr_extra_state_attributes = {"telegrams": list(self._telegrams)}
         self.async_write_ha_state()
+
+
+class EnOceanDevicesSensor(SensorEntity):
+    """Live device list: every configured EnOcean ID plus unknown received IDs.
+
+    Built from the entities' configuration and the received telegrams, so the
+    list documents the installation without manual upkeep.
+    """
+
+    _attr_should_poll = False
+    _attr_name = "EnOcean Geräte"
+    _attr_unique_id = "enocean_new_devices"
+    _attr_icon = "mdi:format-list-bulleted"
+    _attr_native_unit_of_measurement = "Geräte"
+    _unrecorded_attributes = frozenset({"devices", "unknown"})
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self.hass = hass
+        # Fixed ID for dashboards; the German name would slug to "enocean_gerate".
+        self.entity_id = "sensor.enocean_devices"
+
+    async def async_added_to_hass(self) -> None:
+        self.hass.data[DOMAIN][DATA_DONGLE].add_listener(self._packet_received)
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, SIGNAL_DEVICES_UPDATED, self._async_refresh
+            )
+        )
+        self._async_refresh()
+
+    async def async_will_remove_from_hass(self) -> None:
+        dongle = self.hass.data.get(DOMAIN, {}).get(DATA_DONGLE)
+        if dongle is not None:
+            dongle.remove_listener(self._packet_received)
+
+    @callback
+    def _packet_received(self, packet: dict) -> None:
+        self._async_refresh()
+
+    @callback
+    def _async_refresh(self) -> None:
+        data = self.hass.data[DOMAIN]
+        dongle = data.get(DATA_DONGLE)
+        devices = data.get(DATA_DEVICES, {})
+        known = data.get(DATA_KNOWN_IDS, {})
+        seen = data.get(DATA_SEEN, {})
+
+        rows = []
+        for entity_rows in devices.values():
+            for row in entity_rows:
+                last = seen.get(row["id"], {})
+                rows.append(
+                    {**row, "last_seen": last.get("time", "–"), "dbm": last.get("dbm")}
+                )
+        rows.sort(key=lambda r: (r["kind"], r["name"], r["role"]))
+
+        unknown = [
+            {"id": sender, **{k: v for k, v in info.items() if k != "timestamp"}}
+            for sender, info in sorted(
+                seen.items(), key=lambda item: item[1]["timestamp"], reverse=True
+            )
+            if sender not in known
+        ]
+
+        self._attr_native_value = len(devices)
+        self._attr_extra_state_attributes = {
+            "base_id": format_id(dongle.base_id) if dongle and dongle.base_id else None,
+            "chip_id": format_id(dongle.chip_id) if dongle and dongle.chip_id else None,
+            "sender_range": dongle.sender_range_str() if dongle else None,
+            "devices": rows,
+            "unknown": unknown,
+        }
+        if self.hass is not None and self.entity_id:
+            self.async_write_ha_state()

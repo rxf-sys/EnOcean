@@ -5,7 +5,8 @@
 switch:
   - platform: enocean_new
     name: "Leuchte Gäste-WC"
-    sender_id: [0xFF, 0xC8, 0x31, 0x90]   # SR-4 13.1
+    sender_id: [0xFF, 0xC8, 0x31, 0x90]
+    actuator: "SR-4 13.1"
     on_data: 0x70
     off_data: 0x50
     wall_switches:
@@ -15,26 +16,32 @@ switch:
 
   - platform: enocean_new
     name: "Aquarium"
-    sender_id: [0xFF, 0xC8, 0x31, 0xA0]   # MF-2 1, contact 1
+    sender_id: [0xFF, 0xC8, 0x31, 0xA0]
+    actuator: "MF-2 1, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
 
   - platform: enocean_new
     name: "Anlage"
-    sender_id: [0xFF, 0xC8, 0x31, 0xA1]   # MF-2 1, contact 2
+    sender_id: [0xFF, 0xC8, 0x31, 0xA1]
+    actuator: "MF-2 1, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
 
 cover:
   - platform: enocean_new
     name: "Jalousie Mila"
-    sender_id: [0xFF, 0xC8, 0x31, 0xC0]   # JRG-2 1, motor 1
+    sender_id: [0xFF, 0xC8, 0x31, 0xC0]
+    actuator: "JRG-2 1, Motor 1 (Klemmen 1.1/1.2)"
   - platform: enocean_new
     name: "Jalousie Lina"
-    sender_id: [0xFF, 0xC8, 0x31, 0xC1]   # JRG-2 1, motor 2
+    sender_id: [0xFF, 0xC8, 0x31, 0xC1]
+    actuator: "JRG-2 1, Motor 2 (Klemmen 1.3/1.4)"
   - platform: enocean_new
     name: "Jalousie Eltern"
-    sender_id: [0xFF, 0xC8, 0x31, 0xC2]   # JRG-2 2, motor 1
+    sender_id: [0xFF, 0xC8, 0x31, 0xC2]
+    actuator: "JRG-2 2, Motor 1 (Klemmen 2.1/2.2)"
   - platform: enocean_new
     name: "Jalousie Bad"
-    sender_id: [0xFF, 0xC8, 0x31, 0xC3]   # JRG-2 2, motor 2
+    sender_id: [0xFF, 0xC8, 0x31, 0xC3]
+    actuator: "JRG-2 2, Motor 2 (Klemmen 2.3/2.4)"

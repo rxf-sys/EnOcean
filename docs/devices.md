@@ -1,5 +1,9 @@
 # Devices and sender IDs
 
+The live, automatically generated list is the *Geräte* tab of the EnOcean
+dashboard (`sensor.enocean_devices`). This file keeps the ID allocation scheme
+and the notes from teaching in.
+
 Dongle: EnOcean USB 300, `/dev/serial/by-id/usb-EnOcean_GmbH_USB_300_DE_EOAQQB54-if00-port0`,
 base ID `FF:C8:31:80` (valid senders `FF:C8:31:80` .. `FF:C8:31:FF`),
 chip ID `05:A7:90:63`, firmware app 2.15.0.0 / api 2.6.9.0 (`GATEWAYCTRL`).

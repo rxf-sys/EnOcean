@@ -19,12 +19,15 @@ from homeassistant.const import CONF_DEVICE, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 import homeassistant.helpers.config_validation as cv
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CHANNEL_ON_OFF,
     DATA_DONGLE,
+    DATA_SEEN,
     DOMAIN,
     EVENT_TELEGRAM,
+    SEEN_MAX_IDS,
     STATUS_PRESSED,
 )
 from .dongle import DongleError, EnOceanDongle, format_id, telegram_event_data
@@ -145,10 +148,27 @@ async def _setup_dongle(hass: HomeAssistant, device_path: str) -> None:
     await hass.async_add_executor_job(dongle.connect)
     hass.data[DOMAIN][DATA_DONGLE] = dongle
 
+    seen: dict = hass.data[DOMAIN].setdefault(DATA_SEEN, {})
+
     @callback
     def _fire_telegram_event(packet: dict) -> None:
         """Publish every received telegram for automations and the monitor."""
-        hass.bus.async_fire(EVENT_TELEGRAM, telegram_event_data(packet))
+        event_data = telegram_event_data(packet)
+        sender = event_data["sender_id"]
+        entry = seen.pop(sender, {"count": 0})
+        now = dt_util.now()
+        entry.update(
+            rorg=event_data["rorg"],
+            data=event_data["data"],
+            dbm=event_data["dbm"],
+            count=entry["count"] + 1,
+            time=now.strftime("%d.%m. %H:%M"),
+            timestamp=now.timestamp(),
+        )
+        seen[sender] = entry  # re-inserted: dict order = least recently seen first
+        while len(seen) > SEEN_MAX_IDS:
+            seen.pop(next(iter(seen)))
+        hass.bus.async_fire(EVENT_TELEGRAM, event_data)
 
     dongle.add_listener(_fire_telegram_event)
     _LOGGER.info("EnOcean dongle ready on %s", device_path)

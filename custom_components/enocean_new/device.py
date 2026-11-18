@@ -6,17 +6,61 @@ import logging
 from typing import List
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DATA_DONGLE, DATA_KNOWN_IDS, DOMAIN
+from .const import (
+    DATA_DEVICES,
+    DATA_DONGLE,
+    DATA_KNOWN_IDS,
+    DOMAIN,
+    SIGNAL_DEVICES_UPDATED,
+)
 from .dongle import EnOceanDongle, format_id
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def register_known_id(hass: HomeAssistant, dev_id, label: str) -> None:
-    """Remember a label for an EnOcean ID so the monitor can show it."""
-    known = hass.data.setdefault(DOMAIN, {}).setdefault(DATA_KNOWN_IDS, {})
-    known[format_id(dev_id)] = label
+def device_row(
+    dev_id, kind: str, role: str, label: str, codes: str = ""
+) -> dict:
+    """Describe one EnOcean ID used by an entity (see register_device)."""
+    return {
+        "id": format_id(dev_id),
+        "kind": kind,
+        "role": role,
+        "label": label,
+        "codes": codes,
+    }
+
+
+def register_device(
+    hass: HomeAssistant,
+    entity_id: str,
+    name: str,
+    actuator: str | None,
+    rows: List[dict],
+) -> None:
+    """Publish the EnOcean IDs of an entity for the device list and monitor."""
+    data = hass.data.setdefault(DOMAIN, {})
+    known = data.setdefault(DATA_KNOWN_IDS, {})
+    for row in rows:
+        row.update(name=name, entity_id=entity_id, actuator=actuator or "")
+        known[row["id"]] = row["label"]
+    data.setdefault(DATA_DEVICES, {})[entity_id] = rows
+    async_dispatcher_send(hass, SIGNAL_DEVICES_UPDATED)
+
+
+def unregister_device(hass: HomeAssistant, entity_id: str) -> None:
+    """Remove an entity from the device list."""
+    data = hass.data.get(DOMAIN, {})
+    devices = data.get(DATA_DEVICES, {})
+    devices.pop(entity_id, None)
+    # Rebuild: another entity may use the same ID (e.g. temperature and
+    # humidity of one sensor).
+    data[DATA_KNOWN_IDS] = {
+        row["id"]: row["label"] for rows in devices.values() for row in rows
+    }
+    async_dispatcher_send(hass, SIGNAL_DEVICES_UPDATED)
 
 
 class EnOceanDevice:
