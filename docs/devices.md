@@ -22,11 +22,47 @@ Allocation:
 | Sender ID     | Actuator / channel | Room     | Data bytes (ON / OFF) | Entity                    | Status |
 | ------------- | ------------------ | -------- | --------------------- | ------------------------- | ------ |
 | `FF:C8:31:90` | 13.1 (GN-A-R12V-SR-4) | Gäste-WC | `0x70` / `0x50`    | `switch.leuchte_gaste_wc` | taught, tested and in HA 14.11.2026 |
-| `FF:C8:31:91`–`98`, `A0`–`AF`, `B0`–`B4` | 29 further switch channels | see `ha-config/packages/enocean.yaml` | `0x70` / `0x50` (Garten Licht `B1`, HWR `AC`: OFF still `0x70`, to be tested with `0x50`) | `switch.*` | taught; actuator/channel to be filled in from the cabinet plan |
 | `FF:C8:31:C0` | JRG-2 1, motor 1 (terminals 1.1 ZU / 1.2 AUF) | Mila   | up `0x70` / down `0x50` | `cover.jalousie_mila`   | taught and tested 17.11.2026 |
 | `FF:C8:31:C1` | JRG-2 1, motor 2 (terminals 1.3 ZU / 1.4 AUF) | Lina   | up `0x70` / down `0x50` | `cover.jalousie_lina`   | taught and tested 17.11.2026 |
 | `FF:C8:31:C2` | JRG-2 2, motor 1 (terminals 2.1 / 2.2)        | Eltern | up `0x70` / down `0x50` | `cover.jalousie_eltern` | taught and tested 17.11.2026 |
 | `FF:C8:31:C3` | JRG-2 2, motor 2 (terminals 2.3 / 2.4)        | Bad    | up `0x70` / down `0x50` | `cover.jalousie_bad`    | taught and tested 17.11.2026 |
+
+Switch channels (generated from `ha-config/packages/enocean.yaml`; actuator
+derived from the ID scheme, 13.1 confirmed on site). Garten Licht and HWR still
+send `0x70` for OFF until `0x50` has been tested:
+
+| Sender ID | Actuator / channel | Name | ON / OFF |
+| --------- | ------------------ | ---- | -------- |
+| `FF:C8:31:90` | SR-4 13.1 | Leuchte Gäste-WC | `0x70` / `0x50` |
+| `FF:C8:31:91` | SR-4 13.2 | Licht Flur EG | `0x70` / `0x50` |
+| `FF:C8:31:92` | SR-4 13.3 | Waschbecken rechts | `0x70` / `0x50` |
+| `FF:C8:31:93` | SR-4 13.4 | Terrasse Licht | `0x70` / `0x50` |
+| `FF:C8:31:94` | SR-4 14.1 | Eltern | `0x70` / `0x50` |
+| `FF:C8:31:95` | SR-4 14.2 | Ankleide | `0x70` / `0x50` |
+| `FF:C8:31:96` | SR-4 14.3 | Mila Licht | `0x70` / `0x50` |
+| `FF:C8:31:97` | SR-4 14.4 | Bad Ablage | `0x70` / `0x50` |
+| `FF:C8:31:98` | SR-4 15.1 | Arbeitszimmer Licht | `0x70` / `0x50` |
+| `FF:C8:31:A0` | MF-2 1, Kontakt 1 | TV | `0x70` / `0x50` |
+| `FF:C8:31:A1` | MF-2 1, Kontakt 2 | Aquarium | `0x70` / `0x50` |
+| `FF:C8:31:A2` | MF-2 2, Kontakt 1 | Anlage | `0x70` / `0x50` |
+| `FF:C8:31:A3` | MF-2 2, Kontakt 2 | Lina | `0x70` / `0x50` |
+| `FF:C8:31:A4` | MF-2 3, Kontakt 1 | Spitzboden | `0x70` / `0x50` |
+| `FF:C8:31:A5` | MF-2 3, Kontakt 2 | Mila | `0x70` / `0x50` |
+| `FF:C8:31:A6` | MF-2 4, Kontakt 1 | Terrasse | `0x70` / `0x50` |
+| `FF:C8:31:A7` | MF-2 4, Kontakt 2 | Esszimmerlicht | `0x70` / `0x50` |
+| `FF:C8:31:A8` | MF-2 5, Kontakt 1 | Wohnzimmerlicht | `0x70` / `0x50` |
+| `FF:C8:31:A9` | MF-2 5, Kontakt 2 | Garderobe | `0x70` / `0x50` |
+| `FF:C8:31:AA` | MF-2 6, Kontakt 1 | Küche hinten | `0x70` / `0x50` |
+| `FF:C8:31:AB` | MF-2 6, Kontakt 2 | Vorratsraum | `0x70` / `0x50` |
+| `FF:C8:31:AD` | MF-2 7, Kontakt 2 | Küche vorne | `0x70` / `0x50` |
+| `FF:C8:31:AE` | MF-2 8, Kontakt 1 | Tür Außenlicht | `0x70` / `0x50` |
+| `FF:C8:31:AF` | MF-2 8, Kontakt 2 | Waschbecken links | `0x70` / `0x50` |
+| `FF:C8:31:B0` | MF-2 9, Kontakt 1 | Lina Licht | `0x70` / `0x50` |
+| `FF:C8:31:B1` | MF-2 9, Kontakt 2 | Garten Licht | `0x70` / `0x70` |
+| `FF:C8:31:B2` | MF-2 10, Kontakt 1 | Licht Flur OG | `0x70` / `0x50` |
+| `FF:C8:31:B3` | MF-2 10, Kontakt 2 | Bad Decke Licht | `0x70` / `0x50` |
+| `FF:C8:31:B4` | MF-2 11, Kontakt 1 | Dach Licht | `0x70` / `0x50` |
+| `FF:C8:31:AC` | MF-2 7, Kontakt 1 | HWR | `0x70` / `0x70` |
 
 SR-4 operating mode: upper switch on `ES` / `RT` (direction pushbutton). On
 `UT` every key toggles, which also breaks the state shown in HA.

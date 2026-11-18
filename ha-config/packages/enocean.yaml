@@ -4,6 +4,8 @@
 #
 # Switch block mirrors the live configuration.yaml of 18.11.2026 (lines 19-176).
 # The Gäste-WC wall switch codes are as measured on site (bottom key = 0x70).
+# actuator: derived from the sender-ID scheme in docs/devices.md (13.1 confirmed
+# on site; the others assume the IDs were taught according to the scheme).
 
 switch:
   - platform: enocean_new
@@ -19,146 +21,175 @@ switch:
   - platform: enocean_new
     name: "Licht Flur EG"
     sender_id: [0xFF, 0xC8, 0x31, 0x91]
+    actuator: "SR-4 13.2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Waschbecken rechts"
     sender_id: [0xFF, 0xC8, 0x31, 0x92]
+    actuator: "SR-4 13.3"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Terrasse Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0x93]
+    actuator: "SR-4 13.4"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Eltern"
     sender_id: [0xFF, 0xC8, 0x31, 0x94]
+    actuator: "SR-4 14.1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Ankleide"
     sender_id: [0xFF, 0xC8, 0x31, 0x95]
+    actuator: "SR-4 14.2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Mila Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0x96]
+    actuator: "SR-4 14.3"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Bad Ablage"
     sender_id: [0xFF, 0xC8, 0x31, 0x97]
+    actuator: "SR-4 14.4"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Arbeitszimmer Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0x98]
+    actuator: "SR-4 15.1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "TV"
     sender_id: [0xFF, 0xC8, 0x31, 0xA0]
+    actuator: "MF-2 1, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Aquarium"
     sender_id: [0xFF, 0xC8, 0x31, 0xA1]
+    actuator: "MF-2 1, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Anlage"
     sender_id: [0xFF, 0xC8, 0x31, 0xA2]
+    actuator: "MF-2 2, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Lina"
     sender_id: [0xFF, 0xC8, 0x31, 0xA3]
+    actuator: "MF-2 2, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Spitzboden"
     sender_id: [0xFF, 0xC8, 0x31, 0xA4]
+    actuator: "MF-2 3, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Mila"
     sender_id: [0xFF, 0xC8, 0x31, 0xA5]
+    actuator: "MF-2 3, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Terrasse"
     sender_id: [0xFF, 0xC8, 0x31, 0xA6]
+    actuator: "MF-2 4, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Esszimmerlicht"
     sender_id: [0xFF, 0xC8, 0x31, 0xA7]
+    actuator: "MF-2 4, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Wohnzimmerlicht"
     sender_id: [0xFF, 0xC8, 0x31, 0xA8]
+    actuator: "MF-2 5, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Garderobe"
     sender_id: [0xFF, 0xC8, 0x31, 0xA9]
+    actuator: "MF-2 5, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Küche hinten"
     sender_id: [0xFF, 0xC8, 0x31, 0xAA]
+    actuator: "MF-2 6, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Vorratsraum"
     sender_id: [0xFF, 0xC8, 0x31, 0xAB]
+    actuator: "MF-2 6, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Küche vorne"
     sender_id: [0xFF, 0xC8, 0x31, 0xAD]
+    actuator: "MF-2 7, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Tür Außenlicht"
     sender_id: [0xFF, 0xC8, 0x31, 0xAE]
+    actuator: "MF-2 8, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Waschbecken links"
     sender_id: [0xFF, 0xC8, 0x31, 0xAF]
+    actuator: "MF-2 8, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Lina Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0xB0]
+    actuator: "MF-2 9, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Garten Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0xB1]
+    actuator: "MF-2 9, Kontakt 2"
     on_data: 0x70
     off_data: 0x70          # as configured live; 0x50 for OFF still to be tested
   - platform: enocean_new
     name: "Licht Flur OG"
     sender_id: [0xFF, 0xC8, 0x31, 0xB2]
+    actuator: "MF-2 10, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Bad Decke Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0xB3]
+    actuator: "MF-2 10, Kontakt 2"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "Dach Licht"
     sender_id: [0xFF, 0xC8, 0x31, 0xB4]
+    actuator: "MF-2 11, Kontakt 1"
     on_data: 0x70
     off_data: 0x50
   - platform: enocean_new
     name: "HWR"
     sender_id: [0xFF, 0xC8, 0x31, 0xAC]
+    actuator: "MF-2 7, Kontakt 1"
     on_data: 0x70
     off_data: 0x70          # as configured live; 0x50 for OFF still to be tested
 
