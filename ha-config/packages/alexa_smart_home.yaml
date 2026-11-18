@@ -1,0 +1,158 @@
+# Alexa via own Smart Home skill (see alexa-skill/ANLEITUNG.md).
+# Installed as /config/packages/alexa_smart_home.yaml.
+# Device names are the same as in ha-config/alexa/emulated_hue_entities.yaml.
+
+alexa:
+  smart_home:
+    locale: de-DE
+    filter:
+      include_entities:
+        - switch.leuchte_gaste_wc
+        - switch.licht_flur_eg
+        - switch.licht_flur_og
+        - switch.waschbecken_rechts
+        - switch.waschbecken_links
+        - switch.terrasse_licht
+        - switch.terrasse
+        - switch.eltern
+        - switch.ankleide
+        - switch.mila_licht
+        - switch.mila
+        - switch.lina_licht
+        - switch.lina
+        - switch.bad_ablage
+        - switch.bad_decke_licht
+        - switch.arbeitszimmer_licht
+        - switch.tv
+        - switch.aquarium
+        - switch.anlage
+        - switch.spitzboden
+        - switch.esszimmerlicht
+        - switch.wohnzimmerlicht
+        - switch.garderobe
+        - switch.kuche_hinten
+        - switch.kuche_vorne
+        - switch.vorratsraum
+        - switch.tur_aussenlicht
+        - switch.garten_licht
+        - switch.dach_licht
+        - switch.hwr
+        - cover.jalousie_mila
+        - cover.jalousie_lina
+        - cover.jalousie_eltern
+        - cover.jalousie_bad
+    entity_config:
+      switch.leuchte_gaste_wc:
+        name: "Gäste WC"
+        display_categories: LIGHT
+      switch.licht_flur_eg:
+        name: "Flurlicht unten"
+        display_categories: LIGHT
+      switch.licht_flur_og:
+        name: "Flurlicht oben"
+        display_categories: LIGHT
+      switch.waschbecken_rechts:
+        name: "Waschbecken rechts"
+        display_categories: LIGHT
+      switch.waschbecken_links:
+        name: "Waschbecken links"
+        display_categories: LIGHT
+      switch.terrasse_licht:
+        name: "Terrassenlicht"
+        display_categories: LIGHT
+      switch.terrasse:
+        name: "Terrasse"
+        display_categories: SWITCH
+      switch.eltern:
+        name: "Eltern"
+        display_categories: SWITCH
+      switch.ankleide:
+        name: "Ankleide"
+        display_categories: LIGHT
+      switch.mila_licht:
+        name: "Mila Licht"
+        display_categories: LIGHT
+      switch.mila:
+        name: "Mila"
+        display_categories: SWITCH
+      switch.lina_licht:
+        name: "Lina Licht"
+        display_categories: LIGHT
+      switch.lina:
+        name: "Lina"
+        display_categories: SWITCH
+      switch.bad_ablage:
+        name: "Bad Ablage"
+        display_categories: LIGHT
+      switch.bad_decke_licht:
+        name: "Bad Deckenlicht"
+        display_categories: LIGHT
+      switch.arbeitszimmer_licht:
+        name: "Arbeitszimmerlicht"
+        display_categories: LIGHT
+      switch.tv:
+        name: "Fernseher"
+        display_categories: SMARTPLUG
+      switch.aquarium:
+        name: "Aquarium"
+        display_categories: SMARTPLUG
+      switch.anlage:
+        name: "Anlage"
+        display_categories: SMARTPLUG
+      switch.spitzboden:
+        name: "Spitzboden"
+        display_categories: LIGHT
+      switch.esszimmerlicht:
+        name: "Esszimmerlicht"
+        display_categories: LIGHT
+      switch.wohnzimmerlicht:
+        name: "Wohnzimmerlicht"
+        display_categories: LIGHT
+      switch.garderobe:
+        name: "Garderobe"
+        display_categories: LIGHT
+      switch.kuche_hinten:
+        name: "Küchenlicht hinten"
+        display_categories: LIGHT
+      switch.kuche_vorne:
+        name: "Küchenlicht vorne"
+        display_categories: LIGHT
+      switch.vorratsraum:
+        name: "Vorratsraum"
+        display_categories: LIGHT
+      switch.tur_aussenlicht:
+        name: "Außenlicht"
+        display_categories: LIGHT
+      switch.garten_licht:
+        name: "Gartenlicht"
+        display_categories: LIGHT
+      switch.dach_licht:
+        name: "Dachlicht"
+        display_categories: LIGHT
+      switch.hwr:
+        name: "Hauswirtschaftsraum"
+        display_categories: LIGHT
+      cover.jalousie_mila:
+        name: "Rollo Mila"
+        display_categories: EXTERIOR_BLIND
+      cover.jalousie_lina:
+        name: "Rollo Lina"
+        display_categories: EXTERIOR_BLIND
+      cover.jalousie_eltern:
+        name: "Rollo Eltern"
+        display_categories: EXTERIOR_BLIND
+      cover.jalousie_bad:
+        name: "Rollo Bad"
+        display_categories: EXTERIOR_BLIND
+
+# Covers as blinds: Alexa offers "hoch", "runter", "öffnen", "schließen".
+homeassistant:
+  customize:
+    cover.jalousie_mila:
+      device_class: blind
+    cover.jalousie_lina:
+      device_class: blind
+    cover.jalousie_eltern:
+      device_class: blind
+    cover.jalousie_bad:
+      device_class: blind

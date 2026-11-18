@@ -1,0 +1,12 @@
+# Remote access for the Alexa skill via the Tailscale add-on (Funnel).
+# Installed as /config/packages/remote_access.yaml.
+# The add-on proxies HTTPS (port 443, valid *.ts.net certificate) to HA.
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+    - 100.64.0.0/10
+  ip_ban_enabled: true
+  login_attempts_threshold: 5
