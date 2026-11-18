@@ -1,0 +1,75 @@
+# Teach-in helper for the dashboard tab "Anlernen".
+# Installed as /config/packages/enocean_teach.yaml.
+#
+# Pick relay type, actuator number and channel; the sender ID follows the
+# scheme in docs/devices.md and the buttons send the teach/test telegrams.
+
+input_select:
+  enocean_teach_type:
+    name: Relais-Typ
+    icon: mdi:electric-switch
+    options:
+      - "SR-4 (4-Kanal, Licht)"
+      - "MF-2 (2 Kontakte)"
+      - "JRG-2 (Jalousie)"
+
+input_number:
+  enocean_teach_actuator:
+    name: Aktor-Nummer (Aufkleber am Relais)
+    icon: mdi:numeric
+    min: 1
+    max: 16
+    step: 1
+    mode: box
+  enocean_teach_channel:
+    name: Kanal / Kontakt / Motor
+    icon: mdi:numeric-1-box-outline
+    min: 1
+    max: 4
+    step: 1
+    mode: box
+
+template:
+  - sensor:
+      - name: EnOcean Anlernen
+        unique_id: enocean_new_teach_helper
+        icon: mdi:school
+        # State: the sender ID for the current selection, or "ungültig".
+        state: >-
+          {% set t = states('input_select.enocean_teach_type') %}
+          {% set n = states('input_number.enocean_teach_actuator') | int(0) %}
+          {% set c = states('input_number.enocean_teach_channel') | int(0) %}
+          {% if t.startswith('SR-4') and 13 <= n <= 15 and 1 <= c <= 4 %}
+            {% set b = 144 + 4 * (n - 13) + (c - 1) %}
+          {% elif t.startswith('MF-2') and 1 <= n <= 16 and 1 <= c <= 2 %}
+            {% set b = 160 + 2 * (n - 1) + (c - 1) %}
+          {% elif t.startswith('JRG-2') and 1 <= n <= 16 and 1 <= c <= 2 %}
+            {% set b = 192 + 2 * (n - 1) + (c - 1) %}
+          {% else %}
+            {% set b = none %}
+          {% endif %}
+          {{ 'FF:C8:31:%02X' | format(b) if b is not none else 'ungültig' }}
+
+script:
+  enocean_teach_send:
+    alias: "EnOcean: Anlern-Telegramm senden"
+    icon: mdi:access-point
+    mode: single
+    fields:
+      data_byte:
+        name: Code
+        description: "112 = 0x70 (EIN / HOCH / Lernen), 80 = 0x50 (AUS / RUNTER)"
+        required: true
+        selector:
+          number:
+            min: 0
+            max: 255
+    sequence:
+      - variables:
+          sid: "{{ states('sensor.enocean_anlernen') }}"
+      - condition: template
+        value_template: "{{ sid.startswith('FF:C8:31:') }}"
+      - action: enocean_new.send_rps
+        data:
+          sender_id: "{{ [255, 200, 49, sid[9:11] | int(base=16)] }}"
+          data_byte: "{{ data_byte | int }}"

@@ -1,0 +1,106 @@
+# Alexa names for the EnOcean devices: the "entities:" map of emulated_hue.
+# Merged into the existing emulated_hue block (expose_by_default: false).
+# Covers: "an" = open (hoch), "aus" = close (runter).
+
+switch.leuchte_gaste_wc:
+  name: "Gäste WC"
+  hidden: false
+switch.licht_flur_eg:
+  name: "Flurlicht unten"
+  hidden: false
+switch.licht_flur_og:
+  name: "Flurlicht oben"
+  hidden: false
+switch.waschbecken_rechts:
+  name: "Waschbecken rechts"
+  hidden: false
+switch.waschbecken_links:
+  name: "Waschbecken links"
+  hidden: false
+switch.terrasse_licht:
+  name: "Terrassenlicht"
+  hidden: false
+switch.terrasse:
+  name: "Terrasse"
+  hidden: false
+switch.eltern:
+  name: "Eltern"
+  hidden: false
+switch.ankleide:
+  name: "Ankleide"
+  hidden: false
+switch.mila_licht:
+  name: "Mila Licht"
+  hidden: false
+switch.mila:
+  name: "Mila"
+  hidden: false
+switch.lina_licht:
+  name: "Lina Licht"
+  hidden: false
+switch.lina:
+  name: "Lina"
+  hidden: false
+switch.bad_ablage:
+  name: "Bad Ablage"
+  hidden: false
+switch.bad_decke_licht:
+  name: "Bad Deckenlicht"
+  hidden: false
+switch.arbeitszimmer_licht:
+  name: "Arbeitszimmerlicht"
+  hidden: false
+switch.tv:
+  name: "Fernseher"
+  hidden: false
+switch.aquarium:
+  name: "Aquarium"
+  hidden: false
+switch.anlage:
+  name: "Anlage"
+  hidden: false
+switch.spitzboden:
+  name: "Spitzboden"
+  hidden: false
+switch.esszimmerlicht:
+  name: "Esszimmerlicht"
+  hidden: false
+switch.wohnzimmerlicht:
+  name: "Wohnzimmerlicht"
+  hidden: false
+switch.garderobe:
+  name: "Garderobe"
+  hidden: false
+switch.kuche_hinten:
+  name: "Küchenlicht hinten"
+  hidden: false
+switch.kuche_vorne:
+  name: "Küchenlicht vorne"
+  hidden: false
+switch.vorratsraum:
+  name: "Vorratsraum"
+  hidden: false
+switch.tur_aussenlicht:
+  name: "Außenlicht"
+  hidden: false
+switch.garten_licht:
+  name: "Gartenlicht"
+  hidden: false
+switch.dach_licht:
+  name: "Dachlicht"
+  hidden: false
+switch.hwr:
+  name: "Hauswirtschaftsraum"
+  hidden: false
+cover.jalousie_mila:
+  name: "Rollo Mila"
+  hidden: false
+cover.jalousie_lina:
+  name: "Rollo Lina"
+  hidden: false
+cover.jalousie_eltern:
+  name: "Rollo Eltern"
+  hidden: false
+cover.jalousie_bad:
+  name: "Rollo Bad"
+  hidden: false
