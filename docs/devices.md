@@ -22,8 +22,7 @@ Allocation:
 | Sender ID     | Actuator / channel | Room     | Data bytes (ON / OFF) | Entity                    | Status |
 | ------------- | ------------------ | -------- | --------------------- | ------------------------- | ------ |
 | `FF:C8:31:90` | 13.1 (GN-A-R12V-SR-4) | Gäste-WC | `0x70` / `0x50`    | `switch.leuchte_gaste_wc` | taught, tested and in HA 14.11.2026 |
-| `FF:C8:31:A0` | MF-2 1, contact 1 (2xS) | Aquarium | `0x70` / `0x50`  | `switch.aquarium`         | taught and tested 15.11.2026 |
-| `FF:C8:31:A1` | MF-2 1, contact 2 (2xS) | Anlage   | `0x70` / `0x50`  | `switch.anlage`           | taught and tested 15.11.2026 |
+| `FF:C8:31:91`–`98`, `A0`–`AF`, `B0`–`B4` | 29 further switch channels | see `ha-config/packages/enocean.yaml` | `0x70` / `0x50` (Garten Licht `B1`, HWR `AC`: OFF still `0x70`, to be tested with `0x50`) | `switch.*` | taught; actuator/channel to be filled in from the cabinet plan |
 | `FF:C8:31:C0` | JRG-2 1, motor 1 (terminals 1.1 ZU / 1.2 AUF) | Mila   | up `0x70` / down `0x50` | `cover.jalousie_mila`   | taught and tested 17.11.2026 |
 | `FF:C8:31:C1` | JRG-2 1, motor 2 (terminals 1.3 ZU / 1.4 AUF) | Lina   | up `0x70` / down `0x50` | `cover.jalousie_lina`   | taught and tested 17.11.2026 |
 | `FF:C8:31:C2` | JRG-2 2, motor 1 (terminals 2.1 / 2.2)        | Eltern | up `0x70` / down `0x50` | `cover.jalousie_eltern` | taught and tested 17.11.2026 |
@@ -40,4 +39,4 @@ Wall switches (mirrored into HA via `wall_switches`):
 
 | Wall switch ID | Room     | ON key / OFF key           | Mirrors                   | Status |
 | -------------- | -------- | -------------------------- | ------------------------- | ------ |
-| `00:24:55:01`  | Gäste-WC | `0x50` bottom / `0x70` top | `switch.leuchte_gaste_wc` | direction pushbutton (bottom = on, top = off) observed 14.11.2026; ID and codes to be confirmed from log |
+| `00:24:55:01`  | Gäste-WC | `0x70` bottom / `0x50` top | `switch.leuchte_gaste_wc` | direction pushbutton (bottom = on, top = off); codes measured 14.11.2026 |

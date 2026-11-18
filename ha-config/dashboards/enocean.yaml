@@ -104,13 +104,16 @@ views:
       - type: markdown
         title: Codes der Wipptaster
         content: |-
-          | Daten | Taste |
+          | Daten | Taste (EEP F6-02) |
           |---|---|
-          | 0x30 | links oben (A0) |
-          | 0x10 | links unten (AI) |
-          | 0x70 | rechts oben (B0) |
-          | 0x50 | rechts unten (BI) |
+          | 0x30 | linke Wippe, Seite 0 (A0) |
+          | 0x10 | linke Wippe, Seite I (AI) |
+          | 0x70 | rechte Wippe, Seite 0 (B0) |
+          | 0x50 | rechte Wippe, Seite I (BI) |
           | 0x00 | losgelassen |
+
+          Welche Seite oben ist, hängt vom Taster ab (Gäste-WC: unten = 0x70).
+          Im Zweifel Taste drücken und den Code oben in der Tabelle ablesen.
 
   - title: Automationen
     path: automationen
