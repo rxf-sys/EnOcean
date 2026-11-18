@@ -1,6 +1,9 @@
 # EnOcean devices of this installation. Sender IDs: see docs/devices.md.
 # Installed as /config/packages/enocean.yaml (configuration.yaml needs
 # "homeassistant: packages: !include_dir_named packages").
+#
+# Switch block mirrors the live configuration.yaml of 18.11.2026 (lines 19-176).
+# The Gäste-WC wall switch codes are as measured on site (bottom key = 0x70).
 
 switch:
   - platform: enocean_new
@@ -10,23 +13,154 @@ switch:
     on_data: 0x70
     off_data: 0x50
     wall_switches:
-      - id: [0x00, 0x24, 0x55, 0x01]      # wall switch: bottom = on, top = off
-        on_data: 0x50
-        off_data: 0x70
-
+      - id: [0x00, 0x24, 0x55, 0x01]
+        on_data: 0x70
+        off_data: 0x50
+  - platform: enocean_new
+    name: "Licht Flur EG"
+    sender_id: [0xFF, 0xC8, 0x31, 0x91]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Waschbecken rechts"
+    sender_id: [0xFF, 0xC8, 0x31, 0x92]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Terrasse Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0x93]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Eltern"
+    sender_id: [0xFF, 0xC8, 0x31, 0x94]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Ankleide"
+    sender_id: [0xFF, 0xC8, 0x31, 0x95]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Mila Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0x96]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Bad Ablage"
+    sender_id: [0xFF, 0xC8, 0x31, 0x97]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Arbeitszimmer Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0x98]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "TV"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA0]
+    on_data: 0x70
+    off_data: 0x50
   - platform: enocean_new
     name: "Aquarium"
-    sender_id: [0xFF, 0xC8, 0x31, 0xA0]
-    actuator: "MF-2 1, Kontakt 1"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA1]
     on_data: 0x70
     off_data: 0x50
-
   - platform: enocean_new
     name: "Anlage"
-    sender_id: [0xFF, 0xC8, 0x31, 0xA1]
-    actuator: "MF-2 1, Kontakt 2"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA2]
     on_data: 0x70
     off_data: 0x50
+  - platform: enocean_new
+    name: "Lina"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA3]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Spitzboden"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA4]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Mila"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA5]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Terrasse"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA6]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Esszimmerlicht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA7]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Wohnzimmerlicht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA8]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Garderobe"
+    sender_id: [0xFF, 0xC8, 0x31, 0xA9]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Küche hinten"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAA]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Vorratsraum"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAB]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Küche vorne"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAD]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Tür Außenlicht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAE]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Waschbecken links"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAF]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Lina Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xB0]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Garten Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xB1]
+    on_data: 0x70
+    off_data: 0x70          # as configured live; 0x50 for OFF still to be tested
+  - platform: enocean_new
+    name: "Licht Flur OG"
+    sender_id: [0xFF, 0xC8, 0x31, 0xB2]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Bad Decke Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xB3]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "Dach Licht"
+    sender_id: [0xFF, 0xC8, 0x31, 0xB4]
+    on_data: 0x70
+    off_data: 0x50
+  - platform: enocean_new
+    name: "HWR"
+    sender_id: [0xFF, 0xC8, 0x31, 0xAC]
+    on_data: 0x70
+    off_data: 0x70          # as configured live; 0x50 for OFF still to be tested
 
 cover:
   - platform: enocean_new

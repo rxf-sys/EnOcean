@@ -105,16 +105,17 @@ sender=...`) and the data bytes of its ON and OFF keys:
 ```yaml
     wall_switches:
       - id: [0x00, 0x24, 0x55, 0x01]
-        on_data: 0x50    # key that switches the light on (here: bottom)
-        off_data: 0x70   # key that switches it off (here: top)
+        on_data: 0x70    # code of the key that switches the light on
+        off_data: 0x50   # code of the key that switches it off
 ```
 
 For a universal pushbutton (every press toggles) set `on_data` and `off_data`
 to the same value. A press received twice (directly and via a repeater) is
 counted once. Mirroring never transmits anything.
 
-Rocker keys (EEP F6-02): `0x30` = A0 (left top), `0x10` = AI (left bottom),
-`0x70` = B0 (right top), `0x50` = BI (right bottom). If ON and OFF are the
+Rocker keys (EEP F6-02): `0x30` = A0, `0x10` = AI (left rocker), `0x70` = B0,
+`0x50` = BI (right rocker). Which side is physically on top depends on the
+switch — read the code from the EnOcean monitor instead of assuming. If ON and OFF are the
 wrong way round for an actuator, swap them with `on_data` / `off_data`.
 
 ### Cover (jalousie / blinds actuator)
